@@ -29,7 +29,9 @@
 </header>
 <div class="wrap"><div id="err"></div><table id="t"></table></div>
 <script>
-  let month = new Date().toISOString().slice(0, 7);
+  // "Today" in Europe/Belgrade as YYYY-MM-DD (never via UTC, which is wrong between 00:00 and 02:00).
+  const todayBelgrade = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Belgrade', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  let month = todayBelgrade().slice(0, 7);
   const t = document.getElementById('t'), title = document.getElementById('title'), err = document.getElementById('err');
   const shift = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -42,7 +44,7 @@
     if (!r.ok) { err.textContent = 'Could not load calendar.'; return; }
     const data = await r.json();
     const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayBelgrade();
     const ds = d => `${month}-${String(d).padStart(2, '0')}`;
 
     let head = '<thead><tr><th class="apt"></th>';
