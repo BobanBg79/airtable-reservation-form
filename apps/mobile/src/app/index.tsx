@@ -84,19 +84,20 @@ export default function CalendarScreen() {
 
       <Portal>
         <Dialog visible={!!selected} onDismiss={() => setSelected(null)} style={{ maxWidth: 420, width: '90%', alignSelf: 'center' }}>
+          {/* No Fragment here: Paper's Dialog clones its first child with a `style` prop, which Fragment rejects. */}
+          {selected && <Dialog.Title>{selected.guest || 'Guest'}</Dialog.Title>}
           {selected && (
-            <>
-              <Dialog.Title>{selected.guest || 'Guest'}</Dialog.Title>
-              <Dialog.Content style={{ gap: 12 }}>
-                <Detail label="Apartment" value={apartmentName ?? '—'} />
-                <Detail label="Check-in" value={formatDisplayDate(selected.checkIn)} />
-                <Detail label="Check-out" value={formatDisplayDate(selected.checkOut)} />
-                <Detail label="Length" value={formatNights(selected.checkIn, selected.checkOut)} />
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={() => setSelected(null)}>Close</Button>
-              </Dialog.Actions>
-            </>
+            <Dialog.Content style={{ gap: 12 }}>
+              <Detail label="Apartment" value={apartmentName ?? '—'} />
+              <Detail label="Check-in" value={formatDisplayDate(selected.checkIn)} />
+              <Detail label="Check-out" value={formatDisplayDate(selected.checkOut)} />
+              <Detail label="Length" value={formatNights(selected.checkIn, selected.checkOut)} />
+            </Dialog.Content>
+          )}
+          {selected && (
+            <Dialog.Actions>
+              <Button onPress={() => setSelected(null)}>Close</Button>
+            </Dialog.Actions>
           )}
         </Dialog>
       </Portal>
