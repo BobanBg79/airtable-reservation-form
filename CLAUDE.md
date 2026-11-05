@@ -11,9 +11,9 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
 ## Current state (keep working until the rewrite replaces it)
 - **Database:** Airtable base `Delta Rezervacije` (`appJVQJgv7iD74lR1`).
   - Table `Apartments` (`tbl28fxdzAJ9oYKsC`): `Name`, `Note`, `Reservations` (link).
-  - Table `Reservations` (`tbl9OHuC2m4S8tT6Q`): `Guest`, `Apartment` (link to Apartments), `Check-in` (date), `Check-out` (date), `Phone`, `Status` (single select: `Potvrđeno`, `Avans`, `Otkazano` — to be renamed to `Active` / `Cancelled`), `Amount` (EUR), `Note`.
+  - Table `Reservations` (`tbl9OHuC2m4S8tT6Q`): `Guest`, `Apartment` (link to Apartments), `Check-in` (date), `Check-out` (date), `Phone`, `Status` (single select, English names only: `Active` = default for every new reservation, `Inquiry` = short-term hold that blocks the calendar, `Cancelled`, `No show`; `Cancelled` and `No show` free the dates, everything else blocks — see `api/_status.js`), `Amount` (EUR), `Note`.
   - Apartments: Atlas, Berlin, Devetka, Egzotik, Eli, Kapiten, Karuzo, Luna, Margareta, Mimoza, Modena, Mona, Neva, Neven, Onyx.
-  - Airtable automations flag overlaps in `Note` as `⚠ CONFLICT` (backup only).
+  - Airtable automations are being removed: overlap logic lives only in our code (`api/reserve.js`, `packages/core`). Add automations back later only if needed.
 - **Hosting:** Vercel project `airtable-reservation-form`, team `boban2`, Hobby plan. Env vars: `AIRTABLE_TOKEN`, `AIRTABLE_BASE`. Auto-deploys from `main`.
   - **Public production URL (use this in apps): https://airtable-reservation-form.vercel.app**
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.

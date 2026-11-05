@@ -1,3 +1,5 @@
+import { BLOCKING_FORMULA, DEFAULT_STATUS } from './_status.js';
+
 const BASE = process.env.AIRTABLE_BASE;
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const H = { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
@@ -29,7 +31,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Check-out must be after check-in.' });
 
   // Find non-cancelled bookings whose dates overlap (same-day changeover allowed)
-  const formula = `AND({Status}!='Otkazano', IS_BEFORE({Check-in}, '${checkOut}'), IS_AFTER({Check-out}, '${checkIn}'))`;
+  const formula = `AND(${BLOCKING_FORMULA}, IS_BEFORE({Check-in}, '${checkOut}'), IS_AFTER({Check-out}, '${checkIn}'))`;
   const q = `${API}?filterByFormula=${encodeURIComponent(formula)}&fields[]=Guest&fields[]=Apartment&fields[]=Check-in&fields[]=Check-out`;
   const r = await fetch(q, { headers: H });
   if (!r.ok) return res.status(500).json({ error: 'Could not check availability.' });
@@ -48,7 +50,7 @@ export default async function handler(req, res) {
     Apartment: [apartmentId],
     'Check-in': checkIn,
     'Check-out': checkOut,
-    Status: 'Potvrđeno'
+    Status: DEFAULT_STATUS
   };
   if (phone) fields.Phone = phone;
   if (amount) fields.Amount = Number(amount);

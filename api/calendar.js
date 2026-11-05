@@ -1,3 +1,5 @@
+import { BLOCKING_FORMULA } from './_status.js';
+
 const BASE = process.env.AIRTABLE_BASE;
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const H = { Authorization: `Bearer ${TOKEN}` };
@@ -22,7 +24,7 @@ export default async function handler(req, res) {
     const end = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 
     const apts = await fetchAll(`https://api.airtable.com/v0/${BASE}/Apartments?fields[]=Name&sort[0][field]=Name`);
-    const formula = `AND({Status}!='Otkazano', IS_BEFORE({Check-in}, '${end}'), IS_AFTER({Check-out}, '${start}'))`;
+    const formula = `AND(${BLOCKING_FORMULA}, IS_BEFORE({Check-in}, '${end}'), IS_AFTER({Check-out}, '${start}'))`;
     const resv = await fetchAll(`https://api.airtable.com/v0/${BASE}/Reservations?filterByFormula=${encodeURIComponent(formula)}&fields[]=Guest&fields[]=Apartment&fields[]=Check-in&fields[]=Check-out`);
 
     res.setHeader('Cache-Control', 'no-store');
