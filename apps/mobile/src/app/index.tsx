@@ -31,21 +31,35 @@ export default function CalendarScreen() {
     <SafeAreaView style={[s.root, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
       {/* Nav sits next to the title, leaving the top-right corner free (Expo Go's dev gear lives there). */}
       <View style={[s.toolbar, landscape && s.toolbarLandscape]}>
-        <View style={{ flexShrink: 1 }}>
+        <View style={landscape ? s.titleLandscape : { flexShrink: 1 }}>
           {!landscape && (
             <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
               Delta Apartments
             </Text>
           )}
-          <Text variant={landscape ? 'titleLarge' : 'headlineSmall'} style={{ fontWeight: '600' }}>
+          <Text variant={landscape ? 'titleMedium' : 'headlineSmall'} style={{ fontWeight: '600' }}>
             {formatMonthTitle(month)}
           </Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {data ? `${stays} ${stays === 1 ? 'stay' : 'stays'} · ${data.apartments.length} apartments` : ' '}
           </Text>
         </View>
-        <IconButton icon="chevron-left" mode="contained-tonal" accessibilityLabel="Previous month" onPress={() => setMonth((m) => addMonths(m, -1))} />
-        <IconButton icon="chevron-right" mode="contained-tonal" accessibilityLabel="Next month" onPress={() => setMonth((m) => addMonths(m, 1))} />
+        <IconButton
+          icon="chevron-left"
+          mode="contained-tonal"
+          size={landscape ? 18 : 24}
+          style={landscape ? s.navLandscape : undefined}
+          accessibilityLabel="Previous month"
+          onPress={() => setMonth((m) => addMonths(m, -1))}
+        />
+        <IconButton
+          icon="chevron-right"
+          mode="contained-tonal"
+          size={landscape ? 18 : 24}
+          style={landscape ? s.navLandscape : undefined}
+          accessibilityLabel="Next month"
+          onPress={() => setMonth((m) => addMonths(m, 1))}
+        />
         <Button compact mode="text" onPress={() => setMonth(monthOf(today))} disabled={month === monthOf(today)}>
           Today
         </Button>
@@ -105,7 +119,9 @@ function Detail({ label, value }: { label: string; value: string }) {
 const s = StyleSheet.create({
   root: { flex: 1 },
   toolbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 4 },
-  toolbarLandscape: { paddingVertical: 4 },
+  toolbarLandscape: { paddingVertical: 0, paddingHorizontal: 12 },
+  titleLandscape: { flexShrink: 1, flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+  navLandscape: { width: 32, height: 32, margin: 2 },
   card: { flex: 1, marginHorizontal: 12, marginBottom: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });

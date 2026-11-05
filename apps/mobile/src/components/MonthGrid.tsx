@@ -15,9 +15,9 @@ import { barColors, type AppTheme } from '../theme';
 
 // One column width shared by the header and the body: they cannot drift apart.
 const DAY_W = 46;
-const ROW_H = 54;
+const ROW_H = 28;
 const NAME_W = 108;
-const HEADER_H = 44;
+const HEADER_H = 38;
 const BAR_GAP = 2;
 
 interface Props {
@@ -145,7 +145,7 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
                         },
                       ]}
                     >
-                      <Text variant="labelLarge" numberOfLines={1} style={{ color: colors.text }}>
+                      <Text variant="labelLarge" numberOfLines={1} style={[s.barText, { color: colors.text }]}>
                         {b.reservation.guest || 'Guest'}
                       </Text>
                     </Pressable>
@@ -179,9 +179,9 @@ const styles = (t: AppTheme) =>
     },
     headerClip: { flex: 1, overflow: 'hidden' },
     dayHeader: { width: DAY_W, alignItems: 'center', justifyContent: 'center' },
-    weekday: { fontSize: 11, lineHeight: 14, includeFontPadding: false },
-    dayNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    dayNumberText: { fontSize: 13, lineHeight: 16, fontWeight: '600', includeFontPadding: false, textAlignVertical: 'center' },
+    weekday: { fontSize: 10, lineHeight: 12, includeFontPadding: false },
+    dayNumber: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    dayNumberText: { fontSize: 12, lineHeight: 14, fontWeight: '600', includeFontPadding: false, textAlignVertical: 'center' },
     nameColumn: {
       backgroundColor: t.colors.background,
       borderRightWidth: StyleSheet.hairlineWidth,
@@ -208,9 +208,10 @@ const styles = (t: AppTheme) =>
     },
     bar: {
       position: 'absolute',
-      top: 9,
-      height: ROW_H - 18,
+      top: 3,
+      height: ROW_H - 6,
       justifyContent: 'center',
-      paddingHorizontal: 8,
+      paddingHorizontal: 6,
     },
+    barText: { fontSize: 12, lineHeight: 15, fontWeight: '600', includeFontPadding: false },
   });
