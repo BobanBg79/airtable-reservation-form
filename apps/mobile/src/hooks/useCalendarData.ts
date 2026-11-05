@@ -1,6 +1,9 @@
 import { createApiClient, type CalendarData, type YearMonth } from '@delta/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { API_BASE_URL } from '../config';
+
+const AUTO_REFRESH_MS = 60_000;
 
 const api = createApiClient({ baseUrl: API_BASE_URL });
 
@@ -20,14 +23,17 @@ export function useCalendarData(month: YearMonth) {
   const requestId = useRef(0);
 
   const load = useCallback(
-    async (mode: 'initial' | 'refresh') => {
+    async (mode: 'initial' | 'refresh' | 'silent') => {
       const id = ++requestId.current;
-      setState((s) => ({ ...s, loading: mode === 'initial', refreshing: mode === 'refresh', error: undefined }));
+      // 'silent' = background refresh: no spinner, and a failure keeps the data already on screen.
+      if (mode !== 'silent') {
+        setState((s) => ({ ...s, loading: mode === 'initial', refreshing: mode === 'refresh', error: undefined }));
+      }
       try {
         const data = await api.getCalendar(month);
         if (id === requestId.current) setState({ data, loading: false, refreshing: false });
       } catch (e) {
-        if (id !== requestId.current) return;
+        if (id !== requestId.current || mode === 'silent') return;
         const message = e instanceof Error ? e.message : 'Could not load calendar.';
         setState((s) => ({ ...s, loading: false, refreshing: false, error: message }));
       }
@@ -37,6 +43,21 @@ export function useCalendarData(month: YearMonth) {
 
   useEffect(() => {
     void load('initial');
+  }, [load]);
+
+  // Keep the grid fresh while two editors change the same data: refetch quietly when the app
+  // comes back to the foreground and every AUTO_REFRESH_MS while it is open.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void load('silent');
+    });
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void load('silent');
+    }, AUTO_REFRESH_MS);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
   }, [load]);
 
   // Never show another month's bookings on this month's grid.
