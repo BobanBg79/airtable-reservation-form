@@ -86,6 +86,7 @@ Owner uses **Windows** + VS Code.
 ## Working style
 - Owner: Slobodan, senior frontend dev (Vue/TS daily, knows React). Short answers, numbered steps, one at a time. Wants tangible results early.
 - All names, labels and UI text in English.
+- Everything written into the repo is in English, always: code, comments, commit messages, docs (`KNOWN_ISSUES.md`, `CLAUDE.md`), PR descriptions, test names. Only the live chat with the owner may be in Serbian (ekavica).
 - Work on feature branches; never push or merge to `main` without the owner's OK.
 - Don't break the live `index.html` / `api/*` until the new apps replace them.
 
