@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin:0; background:#f5f5f2; color:#1e1e1c; }
+  header { position:sticky; top:0; z-index:5; background:#fff; display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid #ddd; }
+  header button { font-size:20px; border:0; background:#eee; border-radius:8px; width:40px; height:36px; }
+  #title { font-weight:600; font-size:17px; }
+  .wrap { overflow:auto; height:calc(100vh - 57px); }
+  table { border-collapse:collapse; font-size:12px; }
+  th, td { border:1px solid #e2e2dc; min-width:30px; height:34px; padding:0; text-align:center; }
+  thead th { position:sticky; top:0; background:#fafaf7; z-index:2; font-weight:500; }
+  thead th.we { background:#f0eee6; }
+  th.apt { position:sticky; left:0; background:#fff; z-index:3; min-width:78px; text-align:left; padding:0 8px; font-weight:600; }
+  thead th.apt { z-index:4; }
+  td.today, th.today { outline:2px solid #2563eb; outline-offset:-2px; }
+  td.b { background:#2563eb; color:#fff; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:0; padding:0 4px; text-align:left; border-radius:6px; }
+  #err { padding:20px; color:#9a1f1f; }
+</style>
+</head>
+<body>
+<header>
+  <button id="prev">&lsaquo;</button>
+  <div id="title">...</div>
+  <button id="next">&rsaquo;</button>
+</header>
+<div class="wrap"><div id="err"></div><table id="t"></table></div>
+<script>
+  let month = new Date().toISOString().slice(0, 7);
+  const t = document.getElementById('t'), title = document.getElementById('title'), err = document.getElementById('err');
+  const shift = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  async function load() {
+    err.textContent = ''; t.innerHTML = '';
+    const [y, m] = month.split('-').map(Number);
+    title.textContent = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const r = await fetch('/api/calendar?month=' + month);
+    if (!r.ok) { err.textContent = 'Could not load calendar.'; return; }
+    const data = await r.json();
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const today = new Date().toISOString().slice(0, 10);
+    const ds = d => `${month}-${String(d).padStart(2, '0')}`;
+
+    let head = '<thead><tr><th class="apt"></th>';
+    for (let d = 1; d <= days; d++) {
+      const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+      const cls = [(wd === 0 || wd === 6) ? 'we' : '', ds(d) === today ? 'today' : ''].join(' ');
+      head += `<th class="${cls}">${d}<br>${'SMTWTFS'[wd]}</th>`;
+    }
+    head += '</tr></thead>';
+
+    let body = '<tbody>';
+    for (const a of data.apartments) {
+      const mine = data.reservations.filter(x => x.apartments.includes(a.id));
+      body += `<tr><th class="apt">${esc(a.name)}</th>`;
+      let d = 1;
+      while (d <= days) {
+        const day = ds(d);
+        const b = mine.find(x => x.checkIn <= day && day < x.checkOut);
+        if (b) {
+          let span = 0;
+          while (d + span <= days && ds(d + span) < b.checkOut) span++;
+          body += `<td class="b" colspan="${span}" title="${esc(b.guest)} ${b.checkIn} - ${b.checkOut}">${esc(b.guest)}</td>`;
+          d += span;
+        } else {
+          body += `<td class="${day === today ? 'today' : ''}"></td>`;
+          d++;
+        }
+      }
+      body += '</tr>';
+    }
+    t.innerHTML = head + body + '</tbody>';
+  }
+
+  document.getElementById('prev').onclick = () => { month = shift(month, -1); load(); };
+  document.getElementById('next').onclick = () => { month = shift(month, 1); load(); };
+  load();
+</script>
+</body>
+</html>
