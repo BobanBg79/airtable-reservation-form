@@ -13,10 +13,11 @@ import { Animated, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, 
 import { Text, useTheme } from 'react-native-paper';
 import { barColors, type AppTheme } from '../theme';
 
+// One column width shared by the header and the body: they cannot drift apart.
 const DAY_W = 46;
 const ROW_H = 54;
 const NAME_W = 108;
-const HEADER_H = 58;
+const HEADER_H = 44;
 const BAR_GAP = 2;
 
 interface Props {
@@ -36,21 +37,21 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
   const gridW = days.length * DAY_W;
 
   // Header follows the body's horizontal scroll (native driver on iOS/Android).
-  const scrollX = useRef(new Animated.Value(0)).current;
+  // Initial offset is set on BOTH sides (contentOffset + scrollX) because a programmatic
+  // scrollTo does not always emit onScroll, which left the header out of sync with the body.
+  const initialX = todayIndex > 1 ? (todayIndex - 1) * DAY_W : 0;
+  const scrollX = useRef(new Animated.Value(initialX)).current;
   const hScroll = useRef<{ scrollTo(o: { x: number; animated: boolean }): void } | null>(null);
   useEffect(() => {
-    const x = todayIndex > 1 ? (todayIndex - 1) * DAY_W : 0;
-    hScroll.current?.scrollTo({ x, animated: false });
-  }, [data.month, todayIndex]);
+    scrollX.setValue(initialX);
+    hScroll.current?.scrollTo({ x: initialX, animated: false });
+  }, [data.month, initialX, scrollX]);
 
   const s = styles(theme);
 
   return (
-    <ScrollView
-      stickyHeaderIndices={[0]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
-    >
-      {/* Frozen day header */}
+    <View style={{ flex: 1 }}>
+      {/* Frozen day header (outside the vertical scroll, so nothing can push it) */}
       <View style={s.headerRow}>
         <View style={[s.corner, { width: NAME_W }]}>
           <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -63,11 +64,11 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
               const isToday = i === todayIndex;
               return (
                 <View key={d} style={[s.dayHeader, isWeekend(d) && { backgroundColor: theme.app.weekend }]}>
-                  <Text variant="labelSmall" style={{ color: isToday ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+                  <Text variant="labelSmall" style={[s.weekday, { color: isToday ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
                     {formatWeekdayShort(d)}
                   </Text>
                   <View style={[s.dayNumber, isToday && { backgroundColor: theme.colors.primary }]}>
-                    <Text variant="titleSmall" style={{ color: isToday ? theme.colors.onPrimary : theme.colors.onSurface }}>
+                    <Text variant="titleSmall" style={[s.dayNumberText, { color: isToday ? theme.colors.onPrimary : theme.colors.onSurface }]}>
                       {i + 1}
                     </Text>
                   </View>
@@ -79,6 +80,9 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
       </View>
 
       {/* Body: frozen apartment column + horizontally scrolling grid */}
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+      >
       <View style={{ flexDirection: 'row' }}>
         <View style={[s.nameColumn, { width: NAME_W }]}>
           {data.apartments.map((a) => (
@@ -96,6 +100,7 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
+          contentOffset={{ x: initialX, y: 0 }}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
             useNativeDriver: Platform.OS !== 'web',
           })}
@@ -151,7 +156,8 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
           </View>
         </Animated.ScrollView>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -167,13 +173,15 @@ const styles = (t: AppTheme) =>
     corner: {
       justifyContent: 'flex-end',
       paddingLeft: 16,
-      paddingBottom: 10,
+      paddingBottom: 6,
       borderRightWidth: StyleSheet.hairlineWidth,
       borderRightColor: t.colors.outlineVariant,
     },
     headerClip: { flex: 1, overflow: 'hidden' },
-    dayHeader: { width: DAY_W, alignItems: 'center', justifyContent: 'center', gap: 2 },
-    dayNumber: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+    dayHeader: { width: DAY_W, alignItems: 'center', justifyContent: 'center' },
+    weekday: { fontSize: 11, lineHeight: 14, includeFontPadding: false },
+    dayNumber: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    dayNumberText: { fontSize: 13, lineHeight: 16, fontWeight: '600', includeFontPadding: false, textAlignVertical: 'center' },
     nameColumn: {
       backgroundColor: t.colors.background,
       borderRightWidth: StyleSheet.hairlineWidth,

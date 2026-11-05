@@ -8,7 +8,7 @@ import {
   type Reservation,
 } from '@delta/core';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ActivityIndicator, Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MonthGrid } from '../components/MonthGrid';
@@ -17,6 +17,8 @@ import type { AppTheme } from '../theme';
 
 export default function CalendarScreen() {
   const theme = useTheme<AppTheme>();
+  const { width, height } = useWindowDimensions();
+  const landscape = width > height;
   const today = useMemo(() => todayInBelgrade(), []);
   const [month, setMonth] = useState(() => monthOf(today));
   const [selected, setSelected] = useState<Reservation | null>(null);
@@ -27,23 +29,26 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-      <View style={s.toolbar}>
-        <View style={{ flex: 1 }}>
-          <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-            Delta Apartments
-          </Text>
-          <Text variant="headlineSmall" style={{ fontWeight: '600' }}>
+      {/* Nav sits next to the title, leaving the top-right corner free (Expo Go's dev gear lives there). */}
+      <View style={[s.toolbar, landscape && s.toolbarLandscape]}>
+        <View style={{ flexShrink: 1 }}>
+          {!landscape && (
+            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+              Delta Apartments
+            </Text>
+          )}
+          <Text variant={landscape ? 'titleLarge' : 'headlineSmall'} style={{ fontWeight: '600' }}>
             {formatMonthTitle(month)}
           </Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {data ? `${stays} ${stays === 1 ? 'stay' : 'stays'} · ${data.apartments.length} apartments` : ' '}
           </Text>
         </View>
+        <IconButton icon="chevron-left" mode="contained-tonal" accessibilityLabel="Previous month" onPress={() => setMonth((m) => addMonths(m, -1))} />
+        <IconButton icon="chevron-right" mode="contained-tonal" accessibilityLabel="Next month" onPress={() => setMonth((m) => addMonths(m, 1))} />
         <Button compact mode="text" onPress={() => setMonth(monthOf(today))} disabled={month === monthOf(today)}>
           Today
         </Button>
-        <IconButton icon="chevron-left" mode="contained-tonal" accessibilityLabel="Previous month" onPress={() => setMonth((m) => addMonths(m, -1))} />
-        <IconButton icon="chevron-right" mode="contained-tonal" accessibilityLabel="Next month" onPress={() => setMonth((m) => addMonths(m, 1))} />
       </View>
 
       <View style={[s.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
@@ -100,6 +105,7 @@ function Detail({ label, value }: { label: string; value: string }) {
 const s = StyleSheet.create({
   root: { flex: 1 },
   toolbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 4 },
+  toolbarLandscape: { paddingVertical: 4 },
   card: { flex: 1, marginHorizontal: 12, marginBottom: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });
