@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New reservation</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f5f5f2; margin:0; padding:20px; }
+  form { max-width:420px; margin:auto; background:#fff; padding:20px; border-radius:12px; }
+  h1 { font-size:20px; margin:0 0 16px; }
+  label { display:block; font-size:13px; color:#555; margin:12px 0 4px; }
+  input, select, textarea { width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box; }
+  button { width:100%; margin-top:18px; padding:12px; font-size:16px; border:0; border-radius:8px; background:#2563eb; color:#fff; }
+  #msg { margin-top:14px; padding:10px; border-radius:8px; display:none; }
+  .ok { background:#e7f6e7; color:#1d5e1d; } .err { background:#fde8e8; color:#9a1f1f; }
+</style>
+</head>
+<body>
+<form id="f">
+  <h1>New reservation</h1>
+  <label>Guest *</label><input name="guest" required>
+  <label>Apartment *</label><select name="apartmentId" id="apt" required><option value="">Loading...</option></select>
+  <label>Check-in *</label><input type="date" name="checkIn" required>
+  <label>Check-out *</label><input type="date" name="checkOut" required>
+  <label>Phone</label><input name="phone" type="tel">
+  <label>Amount (€)</label><input name="amount" type="number" min="0">
+  <label>Note</label><textarea name="note" rows="2"></textarea>
+  <button id="btn">Save</button>
+  <div id="msg"></div>
+</form>
+<script>
+  const f = document.getElementById('f'), msg = document.getElementById('msg'), btn = document.getElementById('btn');
+  fetch('/api/apartments').then(r => r.json()).then(list => {
+    document.getElementById('apt').innerHTML = '<option value="">Choose...</option>' +
+      list.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  });
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    btn.disabled = true;
+    const body = Object.fromEntries(new FormData(f));
+    const r = await fetch('/api/reserve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    msg.style.display = 'block';
+    if (r.ok) { msg.className = 'ok'; msg.textContent = 'Reservation saved.'; f.reset(); }
+    else { msg.className = 'err'; msg.textContent = d.error; }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>
