@@ -21,7 +21,8 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 
 ## Repo and environment
 
-- [ ] **12. Legacy pages.** `index.html` and `calendar.html` are still live in production. Owner says they are no longer needed; deleting them also removes them from the production URL and needs an explicit OK. `index.html` is an open booking form until then.
+- [x] **12. Legacy pages.** `index.html` and `calendar.html` deleted (owner OK). They disappear from production on the next push to `main`.
+- [ ] **12b. Shared logic still duplicated.** `api/_status.js` and the validation/overlap code in `api/reserve.js` duplicate `packages/core`. Move it to `core` and import it from `api/`; needs a verified Vercel build first (`core` is TypeScript source only, no build output).
 - [ ] **13. Vercel builds the whole workspace.** Production installs the Expo dependencies although `api/*` does not use them. The build passes but is slower than necessary; fix with `.vercelignore` or a custom install command.
 - [ ] **14. `adb` not on PATH in the current VS Code session.** The folder is already in the user PATH; restarting VS Code picks it up. Until then use the full WinGet path to `adb.exe`.
 

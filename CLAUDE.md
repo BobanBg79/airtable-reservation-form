@@ -20,8 +20,8 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
 - **Existing files:**
   - `api/apartments.js` — GET list of apartments.
   - `api/reserve.js` — POST booking; rejects overlaps with 409 before saving.
-  - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + non-cancelled reservations in month.
-  - `index.html` — plain booking form. `calendar.html` — plain monthly grid.
+  - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + reservations that block dates in month.
+  - The old `index.html` / `calendar.html` pages were deleted; the apps are the only clients.
 
 ## Business rules (must hold in every client)
 - Overlap = same apartment AND `newCheckIn < existingCheckOut` AND `newCheckOut > existingCheckIn`.
@@ -88,7 +88,7 @@ Owner uses **Windows** + VS Code.
 - All names, labels and UI text in English.
 - Everything written into the repo is in English, always: code, comments, commit messages, docs (`KNOWN_ISSUES.md`, `CLAUDE.md`), PR descriptions, test names. Only the live chat with the owner may be in Serbian (ekavica).
 - Work on feature branches; never push or merge to `main` without the owner's OK.
-- Don't break the live `index.html` / `api/*` until the new apps replace them.
+- Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Progress
 - Branch `feat/core` (local): workspaces, `packages/core` (models, dates, overlap, validation, tests) and `apps/mobile` Calendar screen (Expo SDK 58) done.
