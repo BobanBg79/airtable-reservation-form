@@ -87,7 +87,7 @@ Owner uses **Windows** + VS Code.
 - Owner: Slobodan, senior frontend dev (Vue/TS daily, knows React). Short answers, numbered steps, one at a time. Wants tangible results early.
 - All names, labels and UI text in English.
 - Everything written into the repo is in English, always: code, comments, commit messages, docs (`KNOWN_ISSUES.md`, `CLAUDE.md`), PR descriptions, test names. Only the live chat with the owner may be in Serbian (ekavica).
-- Git flow: local `main` is only ever updated from `origin/main` (`git checkout main && git pull origin main`); never commit, merge or fast-forward feature work into local `main`. Always work on local feature branches; they reach `origin/main` by pushing the feature branch and merging it there (pull request), after which local `main` is pulled again. Never push or merge to `main` without the owner's OK.
+- Git flow: local `main` is only ever updated from `origin/main` (`git checkout main && git pull origin main`); never commit, merge or fast-forward feature work into local `main`. Always work on local feature branches; for now they go straight to `origin/main` with `git push origin <feature-branch>:main` (fast-forward only, no pull request, no force), after which local `main` is pulled again. Never push to `main` without the owner's OK.
 - Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Progress
