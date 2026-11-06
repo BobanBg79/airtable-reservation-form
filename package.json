@@ -9,7 +9,9 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && npm run test:api",
+    "test:api": "node --test \"api/**/*.test.js\"",
+    "check:env": "node scripts/check-dev-env.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {

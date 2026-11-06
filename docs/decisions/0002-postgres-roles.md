@@ -65,6 +65,12 @@ A temporary table was created by `neondb_owner` after the default privileges wer
 
 After cleanup, `public` had 0 tables. The production branch still has only `neondb_owner`.
 
+## Local env safety
+
+1. **Check `.env.local` after every `neon deploy`, `neon env`, `neon init` or `neon checkout`** by running `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use the role `delta_app`, and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner. (Pitfall found while building the check: on Windows PowerShell 5.1, `Set-Content -Encoding utf8` writes a BOM that hides the first variable of the file. Write `.env.local` without a BOM; the check script strips one if present.)
+2. **Production connection strings never go into `.env.local` or any other local file.** Never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.
+3. **Startup check in the app, dev mode only.** `api/_dbGuard.js` exports `assertDevDatabaseSafe()`: when running locally (not `VERCEL_ENV` `production` or `preview`, not `NODE_ENV=production`) and the database user is not `delta_app` or `NEON_BRANCH` is not `dev`, it logs a loud banner and throws, so the app refuses to start. Messages contain role and branch names only, never connection strings. The first module that opens a database connection must call it at load time. It is **not wired in yet**, because no code connects to the database yet. Tests: `npm run test:api` (part of `npm test`).
+
 ## Consequences
 
 - Migrations run with `MIGRATION_DATABASE_URL` and always as `neondb_owner`, so default privileges apply to everything they create. Tables created by hand with another role need explicit grants.

@@ -11,7 +11,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [x] **3. Race condition.** Obsolete: the Postgres exclusion constraint on (apartment, date range) prevents overlapping bookings atomically, including for edits. Map the constraint error to HTTP 409.
 - [x] **4. Unchecked optional fields.** Obsolete for Airtable: `api/reserve.js` is rewritten on Postgres. Keep the intent: validate `phone`, `note`, `amount` (type, length) in the new endpoint and return 400.
 - [ ] **5. UTC default month.** `api/calendar.js` uses UTC for the default month when `?month=` is missing. The mobile app always sends the month, so low priority.
-- [ ] **6. No tests for `api/`.** The input validation added in `60f859a` was only checked with a throw-away script. Add Vitest tests (the handler can be called with a fake `req`/`res`; validation returns before any network call).
+- [ ] **6. Few tests for `api/`.** Only `api/_dbGuard.js` has tests so far (`npm run test:api`, Node's built-in `node:test`, runs as part of `npm test`). The handlers are untested; the input validation added in `60f859a` was only checked with a throw-away script. Add tests the same way (call the handler with a fake `req`/`res`; validation returns before any network call).
 
 ## Mobile app (`apps/mobile`)
 
