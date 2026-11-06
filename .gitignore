@@ -4,4 +4,6 @@ coverage/
 .vercel/
 .expo/
 *.log
+.env
 .env*.local
+.neon
