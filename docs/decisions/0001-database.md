@@ -38,11 +38,15 @@ Use **PostgreSQL**, hosted on **Neon**.
 Reasons for Neon over Supabase:
 
 - Branching gives a dev database alongside prod at almost no cost
-- Usage-based pricing with no fixed fee; suspends after inactivity, so low traffic stays cheap
+- Usage-based pricing with no fixed fee; scale-to-zero after inactivity, so low traffic stays cheap
 - Native Vercel integration
 - The database sits behind our Vercel backend rather than being exposed directly to the browser
 
 Supabase remains a valid alternative if we later want built-in auth and realtime.
+
+## Data model note: guests
+
+Introduce a separate **guests** table (currently `Guest` and `Phone` are free text on the reservation). Phone number (normalized) is the unique key. Reservations reference a guest. This enables guest history and prevents duplicate guest records.
 
 ## Data size and archiving
 
@@ -52,8 +56,12 @@ Optional later: partition reservations by year, or a yearly job moving records o
 
 ## Integrity rules
 
-- **Unique constraints** to prevent duplicate guests and transactions
-- **Exclusion constraint** on (apartment, date range) to prevent overlapping bookings at the database level
+- **Unique constraints** to prevent duplicate guests (normalized phone) and duplicate transactions
+- **Exclusion constraint** on (apartment, date range) to prevent overlapping bookings at the database level:
+  - requires the `btree_gist` extension
+  - date range is half-open `[)`, so a check-out and a new check-in on the same day are allowed
+  - applies only to blocking statuses (`Active`, `Inquiry`); `Cancelled` and `No show` free the dates, matching current logic in `api/_status.js`
+- Because the database rejects overlaps (including concurrent requests), the planned "write then verify" edit endpoint is not needed
 
 ## Access control
 
@@ -67,17 +75,26 @@ Plus an **audit log** table recording who changed what and when.
 
 ## Backup and recovery
 
-- Rely on Neon's point-in-time recovery as the primary safety net
+- Rely on Neon's point-in-time recovery as the primary safety net (history window on the Free plan is limited)
 - Add a scheduled cron job (e.g. nightly pg_dump) to external storage as an independent backup
 - Periodically test restoring a backup into a dev branch
 
+## Neon Free plan facts (checked 2026-11-06)
+
+- Permanent free tier, not a trial
+- 0.5 GB storage per project, 100 CU-hours per project per month, 10 branches per project
+- Scale-to-zero after 5 minutes of inactivity; first request after that resumes in a few hundred milliseconds (minor cold-start latency)
+- Inactive branches may be archived automatically; they are restored on access
+- No confirmed policy of deleting inactive Free projects was found in Neon's docs (an earlier claim of 90-day deletion was unverified and is withdrawn)
+
 ## Known risks
 
-- Neon free projects inactive for 90+ days may be deleted (from 5 Oct 2026) — move to a paid plan or keep the project active before going live
-- Pricing and limits change; recheck before launch
+- Pricing and limits change; recheck against Neon's pricing page before launch
+- Consider a paid plan before production for a longer recovery window
 
 ## Consequences
 
-- Migrate existing Airtable data into Postgres
+- Do not build edit/cancel features on top of Airtable; implement them only on Postgres. Items 2, 3 and 4 in KNOWN_ISSUES.md and automation A become obsolete
+- Migrate existing Airtable data into Postgres (including deduplicating guests)
 - Define schema and migrations in the repo
 - Airtable can be retired once the app's calendar view is live
