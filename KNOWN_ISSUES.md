@@ -27,6 +27,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [ ] **12b. Shared logic still duplicated.** `api/_status.js` and the validation/overlap code in `api/reserve.js` duplicate `packages/core`. Move it to `core` and import it from `api/`; needs a verified Vercel build first (`core` is TypeScript source only, no build output).
 - [ ] **13. Vercel builds the whole workspace.** Production installs the Expo dependencies although `api/*` does not use them. The build passes but is slower than necessary; fix with `.vercelignore` or a custom install command.
 - [ ] **14. `adb` not on PATH in the current VS Code session.** The folder is already in the user PATH; restarting VS Code picks it up. Until then use the full WinGet path to `adb.exe`.
+- [ ] **15. `npm audit`: 5 moderate vulnerabilities** (2026-11-06), all in the Expo dev toolchain, none in code we ship: `expo`, `@expo/cli`, `@expo/fingerprint` (all via `glob`/`minimatch`), `glob` (AbortSignal cancellation bypass allows post-timeout filesystem traversal) and `minimatch` (denial of service via globparts amplification). The only suggested fix is `expo@53.0.11`, a downgrade from SDK 58; do NOT run `npm audit fix --force`. Revisit with the next Expo SDK upgrade.
 
 ## Done
 
