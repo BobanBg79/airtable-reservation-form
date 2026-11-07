@@ -101,6 +101,9 @@ The database is moving from Airtable to PostgreSQL on Neon (Neon project `Delta`
 - Deactivate instead of delete (ADR 0003): `delta_app` has no `DELETE`.
 - The schema is Drizzle: `db/schema.ts` and reviewed SQL in `db/migrations/` (ADR 0004). Change it only through migrations (`docs/database-migrations.md`): edit schema, `npm run db:generate`, review the SQL, `npm run db:migrate` (dev only). Never edit an applied migration.
 
+## Where things are written
+- Planned work and task descriptions: `TODO.md`. Known problems: `KNOWN_ISSUES.md`. Decisions: `docs/decisions/` (ADRs). Keep them separate and update them when work is done.
+
 ## Progress
 - Branch `feat/core` (local): workspaces, `packages/core` (models, dates, overlap, validation, tests) and `apps/mobile` Calendar screen (Expo SDK 58) done.
 - Next: owner verifies Calendar in the browser, then New reservation screen, ViewModels, auth, web app.
