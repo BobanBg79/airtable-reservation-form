@@ -4,6 +4,32 @@ Planned work. Decisions live in `docs/decisions/` (ADRs), known problems in `KNO
 
 ## Next tasks
 
+Suggested order (the owner decides): 1. Auth, 2. `inquiry` status and the overlap constraint, 3. write endpoints and the New reservation screen, 4. ViewModels, 5. the production branch and the data migration, 6. the web app. Auth comes first because it gates every write endpoint and the point at which real data may be entered.
+
+### Task: Authentication (editor and viewer)
+
+**Why.** There is no auth. Anyone who knows the URL can read everything the API serves, including owner contact data (`KNOWN_ISSUES.md` 17), and the write endpoints that come next must be restricted to two editors. This also gives the Home screen its signed-in user.
+
+**First step: propose the approach to the owner before writing code** (`CLAUDE.md`, "Auth"). Candidates: a PIN per person or a magic link, handled by Vercel functions; session token in Expo SecureStore on mobile and an httpOnly cookie on web; two roles, editor (create, edit, cancel) and viewer (read-only calendar). Every write endpoint checks the editor role on the server.
+
+**To decide.** Does a viewer see owner name, phone and rent? (Recommendation: no, editors only.) How is a lost device handled? Where do users live (a `users` table, with the `created_by` and `updated_by` columns of ADR 0004 becoming foreign keys)?
+
+**Acceptance criteria.** Unauthenticated requests get 401 on everything except a login endpoint; a viewer gets 403 on writes; the app shows a login screen and keeps the session; tests for the role checks in `api/`.
+
+### Task: Write endpoints and the New reservation screen
+
+**Why.** The app can only read. The old Airtable `api/reserve.js` was removed.
+
+**Scope.** Create, edit and cancel a reservation on Postgres, with input validation (dates, phone format, amount) and clear 4xx messages; then the form screen from `CLAUDE.md` ("Form": apartment picker, date range picker, inline "Occupied" error from the server, success feedback, then reset). Map database errors as in `docs/database-migrations.md` (`23P01` overlap becomes 409 "Occupied" with the clashing reservation's guest and dates). Return the reservation `id` and `status` from the calendar so the app can open a stay.
+
+**Depends on:** auth, the `inquiry` task and the overlap constraint (below). Reuse `findConflict` and `validateReservationInput` from `packages/core` for the client-side pre-check.
+
+### Task: ViewModels and `react-bindings`
+
+**Why.** `CLAUDE.md` wants all logic in Model and ViewModel. Today the temporary `hooks/useCalendarData.ts` and `state/ApartmentsProvider.tsx` hold loading, errors and the 60-second auto-refresh in the app.
+
+**Scope.** `CalendarVM`, `ApartmentsVM` (and later `ReservationFormVM`, `AuthVM`) in `packages/core/viewmodels`, framework-agnostic with subscribe, unit-tested; thin hooks in a new `packages/react-bindings`. Keep the behaviour (auto-refresh on foreground and every 60 seconds, silent failures, request-id guard against stale responses).
+
 ### Task: `inquiry` reservation status (short-term hold)
 
 **Branch (suggested):** `feature/inquiry-status`, after `feature/drizzle-schema` is on `main`.
@@ -104,5 +130,5 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 - Drizzle migrations and the initial schema on the Neon `dev` branch (`fd79903`, `c994e01`).
 - Dev seed: nine apartments (real names, made-up details) and 25 fake reservations around 2026-11-07 (`npm run db:seed`).
-- Navigation: bottom tabs (Home, Calendar, Apartments) and read-only apartment details, reached from the list and by tapping an apartment name in the calendar; `/api/apartments` returns the full details.
+- Navigation (ADR 0006, `50b9e84`): bottom tabs (Home, Calendar, Apartments) and read-only apartment details, reached from the list and by tapping an apartment name in the calendar; `/api/apartments` returns the full details.
 - The API reads only from Neon (`api/calendar.js`, `api/apartments.js`); all Airtable code and the old `api/reserve.js` are removed. Local API for the app: `npm run dev:api`.

@@ -19,7 +19,7 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
   - **Order matters:** add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500 (`KNOWN_ISSUES.md` 16).
 - **Existing files:**
-  - `api/apartments.js` — GET list of active apartments.
+  - `api/apartments.js` — GET active apartments with all their details (address, floor, area, owner, rent, amenities...).
   - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + reservations that block dates in month.
   - There is no write endpoint yet: `api/reserve.js` (Airtable) was removed; create, edit and cancel are to be written on Postgres (`TODO.md`).
   - Helpers (not routes): `api/_db.js` (the Neon connection), `api/_pgReads.js` (read queries), `api/_status.js`, `api/_dbGuard.js`.
@@ -64,7 +64,7 @@ Rules:
 - Views contain no business logic: they render VM state and call VM commands.
 - Use npm workspaces.
 
-## Mobile app structure (`apps/mobile/src`, Expo Router)
+## Mobile app structure (`apps/mobile/src`, Expo Router; see ADR 0006)
 - `app/_layout.tsx`: providers (Paper theme, `ApartmentsProvider`) and the root `Stack`.
 - `app/(tabs)/_layout.tsx`: bottom navigation. In SDK 58 `Tabs` from `expo-router` is deprecated; use the headless `expo-router/ui` (`Tabs`, `TabSlot`, `TabList`, `TabTrigger asChild`). The bar is our own Material 3 style (`components/TabBarItem.tsx`), shorter with icon and label side by side in landscape. The triggers must be direct children of `<TabList>`.
 - Tabs: `(tabs)/index.tsx` Home (greeting for now; the signed-in user comes with auth), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen).
@@ -86,17 +86,17 @@ Rules:
 - Mobile: Expo SDK 58 (needs Node >= 22.13). Test via Expo web / Expo Go / dev build; later EAS Build for APK / TestFlight.
 - Mobile app uses the public production URL above (via `EXPO_PUBLIC_API_URL`).
 
-## Local setup & phone testing (give the owner these steps one at a time)
-Owner uses **Windows** + VS Code.
-1. Node.js LTS (>= 22.13) and Git. Clone, `npm install` at the root.
+## Local setup & phone testing
+Owner uses **Windows** + VS Code and an Android phone on USB. For running the app on the phone and taking screenshots with adb, use the project skill `.claude/skills/phone-preview/SKILL.md` (`/phone-preview`); it covers adb recovery and landscape testing too. Other options, one step at a time:
+1. Node.js LTS (>= 22.13, 22.18 or newer for the scripts that import `packages/core`) and Git. Clone, `npm install` at the root.
 2. Quickest: in `apps/mobile` run `npx expo start`, press `w` for the browser.
-3. Phone: install **Expo Go**, same Wi-Fi as the PC, scan the QR code. If blocked, `npx expo start --tunnel`.
-4. Android via USB: Developer options + USB debugging, Android Studio (SDK + adb), then `npx expo run:android`.
-5. Shareable APK: `npx eas build -p android --profile preview`.
-6. iPhone native builds need a Mac or EAS + Apple developer account; until then Expo Go.
+3. Phone: **Expo Go**, over USB with `adb reverse tcp:8081 tcp:8081` or on the same Wi-Fi with the QR code (`--tunnel` if Wi-Fi blocks it).
+4. Android build on the phone: `npx expo run:android` (Android Studio SDK + adb). Shareable APK: `npx eas build -p android --profile preview`.
+5. iPhone native builds need a Mac or EAS + an Apple developer account; until then Expo Go.
 
 ## Working style
-- Owner: Slobodan, senior frontend dev (Vue/TS daily, knows React). Short answers, numbered steps, one at a time. Wants tangible results early.
+- Owner: Slobodan, senior frontend dev (Vue/TS daily, knows React). **Very short answers in chat**; he asks follow-up questions when something is unclear. Numbered steps, one at a time. Wants tangible results early. Chat is in Serbian (ekavica).
+- Commit and push only when the owner asks. He usually says "commit i push" when a piece of work is done; after a push, check that the production API still answers.
 - All names, labels and UI text in English.
 - Everything written into the repo is in English, always: code, comments, commit messages, docs (`KNOWN_ISSUES.md`, `CLAUDE.md`), PR descriptions, test names. Only the live chat with the owner may be in Serbian (ekavica).
 - Git flow: local `main` is only ever updated from `origin/main` (`git checkout main && git pull origin main`); never commit, merge or fast-forward feature work into local `main`. Always work on local feature branches; for now they go straight to `origin/main` with `git push origin <feature-branch>:main` (fast-forward only, no pull request, no force), after which local `main` is pulled again. Never push to `main` without the owner's OK.
@@ -118,6 +118,17 @@ The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`)
 ## Where things are written
 - Planned work and task descriptions: `TODO.md`. Known problems: `KNOWN_ISSUES.md`. Decisions: `docs/decisions/` (ADRs). Keep them separate and update them when work is done.
 
-## Progress
-- Branch `feat/core` (local): workspaces, `packages/core` (models, dates, overlap, validation, tests) and `apps/mobile` Calendar screen (Expo SDK 58) done.
-- Next: owner verifies Calendar in the browser, then New reservation screen, ViewModels, auth, web app.
+## Progress and where to start
+Everything below is on `main` (commit and push only on request).
+
+**Done**
+- Monorepo with `packages/core` (models, dates, overlap, validation, API client, formatting; Vitest) and `apps/mobile` (Expo SDK 58).
+- Neon PostgreSQL with Drizzle migrations, the roles and safety guards (ADRs 0001 to 0005), a dev seed (9 apartments, 25 reservations), and the API reading from Neon. Vercel Production uses the dev branch for now (ADR 0005).
+- Mobile app: the multi-calendar (frozen header and apartment column, today and weekends, bars, details dialog, auto-refresh), bottom tabs, the apartments list and read-only apartment details, tapping a name in the calendar opens details (ADR 0006).
+- Tooling: the `phone-preview` skill, `npm run dev:api`, `npm run check:env`, `npm test` (core, `api/`, `scripts/`) and `npm run typecheck`.
+
+**Where to start a new session**
+1. `git checkout main && git pull origin main`, then a new feature branch from `main`.
+2. Read `TODO.md` (the next tasks, in a suggested order), `KNOWN_ISSUES.md` and the ADRs in `docs/decisions/` that touch the task.
+3. Suggested next task: **authentication** (`TODO.md`; propose the approach to the owner first). After it: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
+4. To see the app on the phone: `/phone-preview`. The deployed app shows fake dev data and no real data may be entered yet (ADR 0005, `KNOWN_ISSUES.md` 16 and 17).
