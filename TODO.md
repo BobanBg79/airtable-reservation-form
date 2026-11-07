@@ -45,9 +45,52 @@ Planned work. Decisions live in `docs/decisions/` (ADRs), known problems in `KNO
 
 **Out of scope.** Blocks that are not a guest (maintenance, owner using the apartment): to be decided separately. If needed, a small `calendar_blocks` table plus a trigger or app check is the alternative (see the discussion in ADR 0004).
 
+### Task 2: no double booking, enforced by the database (exclusion constraint)
+
+**Branch (suggested):** `feature/no-overlap-constraint`, together with or after the `inquiry` task.
+**Related:** ADR 0001 ("Integrity rules"), ADR 0004, business rules in `CLAUDE.md`.
+
+**Why.** Today nothing in the database stops two reservations of the same apartment from overlapping. A constraint in the table makes overlap impossible for every writer (the API, an edit, a status change, two simultaneous requests), so the database becomes the final source of truth and the planned write-then-verify endpoint is not needed.
+
+**The rule (from `CLAUDE.md`).** Two reservations of the same apartment overlap when `newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn`. A same-day changeover is allowed: one reservation's check-out may equal another's check-in. Check-out must stay after check-in (already a check constraint).
+
+**Schema change (one hand-written migration).** Drizzle cannot model exclusion constraints, so use `npx drizzle-kit generate --custom --name=no_overlap_constraint`:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;--> statement-breakpoint
+ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
+  EXCLUDE USING gist (
+    "apartment_id" WITH =,
+    daterange("check_in_date", "check_out_date", '[)') WITH &&
+  ) WHERE ("status" IN ('active', 'inquiry') AND "is_active");
+```
+
+- `btree_gist` lets a gist index compare the integer `apartment_id` with `=`.
+- The half-open range `[check_in, check_out)` is what makes a same-day changeover legal.
+- The `WHERE` makes only blocking rows count: `active` and `inquiry` block; `cancelled`, `no_show` and deactivated rows (`is_active = false`) free their dates and may overlap anything.
+- The `inquiry` value must already exist in the enum, so do the `inquiry` task first. If this task goes first, the constraint can only list `active` and has to be dropped and recreated when `inquiry` is added.
+- Creating the extension needs the owner role, which migrations use. Check that Neon allows it on the branch before relying on it.
+
+**What it covers automatically.** The constraint is checked on every `INSERT` and `UPDATE`: new bookings, moving dates, changing the apartment, and reactivating a `cancelled` or `no_show` reservation. Two simultaneous requests cannot both succeed; one fails.
+
+**API follow-up (when `api/*` moves to Postgres).** The failure is SQLSTATE `23P01` (`exclusion_violation`); map it to HTTP 409 "Occupied" and look up the conflicting reservation to show its guest and dates. The client may still pre-check overlap for UX (`findConflict` in `packages/core`), but the database decides. Add `23P01` to the error-code table in `docs/database-migrations.md`.
+
+**Acceptance criteria (test on `dev` with temporary rows, then clean up).**
+- Same apartment, overlapping dates: rejected with `23P01`.
+- Same apartment, check-out equal to another reservation's check-in (and the reverse): allowed.
+- Different apartment, same dates: allowed.
+- A `cancelled`, `no_show` or `is_active = false` reservation does not block; a new reservation may take its dates.
+- Reactivating such a reservation while its dates are taken: rejected; when free: allowed.
+- Updating dates or apartment into an occupied range: rejected.
+- An `inquiry` blocks like an `active` reservation (after the `inquiry` task).
+- One-night stays work (`[d, d+1)`).
+- Two parallel inserts for the same dates: exactly one succeeds.
+- `delta_app` still cannot delete or run DDL; `npm run typecheck` and `npm test` pass.
+
+**Open question.** Should the existing btree index `reservations_apartment_dates_idx` stay? The constraint creates its own gist index; keep the btree one only if calendar queries still benefit (check with `EXPLAIN` once there is data).
+
 ## Backlog
 
-- Task 2: double-booking exclusion constraint on (apartment, date range): `btree_gist`, half-open range, blocking statuses only (see ADR 0001, 0004).
 - Switch `api/*` from Airtable to Postgres: connection module that calls `assertDevDatabaseSafe()`, endpoints for list, calendar, create, edit and cancel, with error-code mapping (see `docs/database-migrations.md`).
 - Migrate the existing Airtable data into Postgres.
 - Production: roles on the `production` branch with new passwords, `DATABASE_URL` only in Vercel, and a safe way to run migrations for production (ADR 0004, open question 1).
