@@ -24,7 +24,8 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - There is no write endpoint yet: `api/reserve.js` (Airtable) was removed; create, edit and cancel are to be written on Postgres (`TODO.md`).
   - Helpers (not routes): `api/_db.js` (the Neon connection), `api/_pgReads.js` (read queries), `api/_status.js`, `api/_dbGuard.js`.
   - The old `index.html` / `calendar.html` pages were deleted; the apps are the only clients.
-- **Local API for the app:** `npm run dev:api` serves `api/` on `http://127.0.0.1:3000` from the Neon `dev` branch (no `vercel dev` needed). `apps/mobile/.env.local` points the app at it (`EXPO_PUBLIC_API_URL`); a phone on USB needs `adb reverse tcp:3000 tcp:3000`.
+- **Running the app on the phone:** by default the app uses the production API (which serves the Neon `dev` data, ADR 0005), so only Expo runs locally. The steps, including taking screenshots with adb, are in the project skill `.claude/skills/phone-preview/SKILL.md` (`/phone-preview`).
+- **Local API (optional):** `npm run dev:api` serves `api/` on `http://127.0.0.1:3000` from the Neon `dev` branch (no `vercel dev` needed), for trying API changes before deploying them. To use it, create `apps/mobile/.env.local` (git-ignored) with `EXPO_PUBLIC_API_URL=http://localhost:3000` and run `adb reverse tcp:3000 tcp:3000`; delete the file to go back to production.
 
 ## Business rules (must hold in every client)
 - Overlap = same apartment AND `newCheckIn < existingCheckOut` AND `newCheckOut > existingCheckIn`.

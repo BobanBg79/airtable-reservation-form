@@ -49,10 +49,10 @@ The real apartments for production come from the one-time data migration, not fr
 
 ## Running the API and the app locally
 
-The data source is always Neon; there is no switch.
+The data source is always Neon; there is no switch. By default the app on the phone uses the production API, which serves the `dev` data (ADR 0005); see the `phone-preview` skill (`.claude/skills/phone-preview/SKILL.md`). A local API is only needed to try changes in `api/` before deploying them:
 
 1. `npm run dev:api` serves the functions in `api/` on `http://127.0.0.1:3000` against the `dev` branch (no `vercel dev` or Vercel login needed). It refuses unsafe settings on its own (`scripts/local-guard.mjs`: role `delta_app`, branch `dev`, nothing production-like), so no separate `check:env` is needed. Restart it after editing a file in `api/`.
-2. `apps/mobile/.env.local` (git-ignored) sets `EXPO_PUBLIC_API_URL=http://localhost:3000`. Restart Expo with `npx expo start -c` after changing it.
+2. Create `apps/mobile/.env.local` (git-ignored) with `EXPO_PUBLIC_API_URL=http://localhost:3000` to point the app at it. Restart Expo with `npx expo start -c` after changing it, and delete the file to go back to production.
 3. A phone on USB reaches the server with `adb reverse tcp:3000 tcp:3000` (the server only listens on `127.0.0.1`, so nothing is exposed to the network).
 
 ## Permissions on new tables
