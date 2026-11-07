@@ -90,6 +90,16 @@ Owner uses **Windows** + VS Code.
 - Git flow: local `main` is only ever updated from `origin/main` (`git checkout main && git pull origin main`); never commit, merge or fast-forward feature work into local `main`. Always work on local feature branches; for now they go straight to `origin/main` with `git push origin <feature-branch>:main` (fast-forward only, no pull request, no force), after which local `main` is pulled again. Never push to `main` without the owner's OK.
 - Don't break the live `api/*`: the mobile app uses it in production.
 
+## Neon / database rules
+The database is moving from Airtable to PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`). Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete): read them before any database or schema work. No new work on Airtable.
+- Locally always use the Neon `dev` branch. The app connects as `delta_app`; `neondb_owner` is only for migrations (`MIGRATION_DATABASE_URL`) and never goes into Vercel.
+- After every `neon deploy`, `neon env`, `neon init` or `neon checkout`, run `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use `delta_app` and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner.
+- Production connection strings never go into `.env.local` or any local file, and never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.
+- Never print or commit passwords or connection strings (use `--no-secrets` where a command offers it). `.env`, `.env.local` and `.neon` stay git-ignored. Write `.env.local` without a BOM.
+- `neon roles create` defaults to an admin role: always pass `--access read_only` and add grants with SQL.
+- Code that opens a database connection must call `assertDevDatabaseSafe()` from `api/_dbGuard.js` when it loads.
+- Deactivate instead of delete (ADR 0003): `delta_app` has no `DELETE`.
+
 ## Progress
 - Branch `feat/core` (local): workspaces, `packages/core` (models, dates, overlap, validation, tests) and `apps/mobile` Calendar screen (Expo SDK 58) done.
 - Next: owner verifies Calendar in the browser, then New reservation screen, ViewModels, auth, web app.
