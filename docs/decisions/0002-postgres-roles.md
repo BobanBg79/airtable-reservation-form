@@ -23,7 +23,7 @@ Rules:
 
 - `neondb_owner` is never used by the running app and is never put into Vercel.
 - `delta_app` has no `DELETE`, no `TRUNCATE`, no `REFERENCES`/`TRIGGER`, and cannot run any DDL (no `CREATE`, `ALTER`, `DROP`, no temporary tables, no new schemas).
-- Rows are never deleted by the app. A reservation is cancelled by changing its status (`Cancelled`, `No show`); corrections that truly need a delete are done by the owner.
+- Rows are never deleted by the app. A reservation is cancelled by changing its status (`Cancelled`, `No show`), and apartments and guests are deactivated (see [ADR 0003](0003-soft-delete.md)); corrections that truly need a delete are done by the owner.
 - `delta_app` and `delta_readonly` both have `CONNECT` on the database and `USAGE` on schema `public`.
 
 ## How the roles were provisioned
