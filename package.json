@@ -9,12 +9,14 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present && npm run test:api",
+    "test": "npm run test --workspaces --if-present && npm run test:api && npm run test:scripts",
     "test:api": "node --test \"api/**/*.test.js\"",
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
     "check:env": "node scripts/check-dev-env.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "npm run check:env && drizzle-kit migrate",
-    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p db"
+    "db:seed": "npm run check:env && node scripts/seed-dev.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p db && tsc -p ."
   },
   "dependencies": {
     "@neon/config": "^1.12.0",

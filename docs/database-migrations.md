@@ -33,6 +33,18 @@ This creates an empty `.sql` file in `db/migrations/`; write the SQL in it. Sepa
 
 - **Every new table with an `updated_at` column needs its own trigger.** Add a `CREATE TRIGGER ... EXECUTE FUNCTION set_updated_at()` line in a custom migration (copy it from `0001_updated_at_triggers.sql`).
 
+## Seeding the dev branch (fake data)
+
+`npm run db:seed` puts three fake apartments into the Neon `dev` branch so the app has something to show. The names (`Atlas`, `Berlin`, `Devetka`) match real apartment names from the calendar screen; everything else is made up (`scripts/seed-data.mjs`). It is idempotent: running it again adds nothing.
+
+It can only ever touch `dev`, in layers:
+1. It is a manual command in `scripts/`. No install, build or deploy step runs it, and nothing in `api/` imports it.
+2. It refuses on Vercel, in CI, with `NODE_ENV=production`, with a `DATABASE_URL` set in the shell, with a role other than `delta_app`, or a branch other than `dev`. Connection details come from `.env.local` only. The role and branch rule is the same one `npm run check:env` uses (`api/_dbGuard.js`).
+3. It refuses if `apartments` contains any row not created by the seed (`created_by = 'dev-seed'`), so it cannot add fake rows next to real data.
+4. It runs as `delta_app` (insert only), so it cannot delete or change the schema.
+
+The real apartments for production come from the one-time Airtable data migration, not from a seed. Never put real owner phone numbers or addresses in `scripts/seed-data.mjs`. Note that the app reads apartments from Airtable until `api/*` moves to Postgres, so the seeded rows are not visible in the calendar yet.
+
 ## Permissions on new tables
 
 Tables created by a migration (as `neondb_owner`) get the default privileges from ADR 0002 automatically: `delta_app` can `SELECT`, `INSERT`, `UPDATE`; `delta_readonly` can `SELECT`; nobody but the owner can `DELETE` or run DDL. Nothing to grant by hand. Objects created by another role would not get them.

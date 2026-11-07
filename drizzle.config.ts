@@ -3,6 +3,7 @@
 // MIGRATION_DATABASE_URL in .env.local and is never hardcoded or printed. neon.ts is the separate
 // Neon CLI branch policy; the two do not overlap.
 import { defineConfig } from 'drizzle-kit';
+import { DEV_BRANCH, OWNER_ROLE, roleOf } from './api/_dbGuard.js';
 
 try {
   process.loadEnvFile('.env.local');
@@ -16,12 +17,13 @@ if (!url) {
 }
 
 // Refuse to run against anything but the owner role on the dev branch. Messages carry names only.
-const role = /^postgres(?:ql)?:\/\/([^:@/]+)/.exec(url)?.[1];
-if (role !== 'neondb_owner') {
-  throw new Error(`Migrations must run as "neondb_owner", but MIGRATION_DATABASE_URL uses "${role ?? 'unknown'}".`);
+// Role and branch names come from api/_dbGuard.js, the single place that defines them.
+const role = roleOf(url);
+if (role !== OWNER_ROLE) {
+  throw new Error(`Migrations must run as "${OWNER_ROLE}", but MIGRATION_DATABASE_URL uses "${role ?? 'unknown'}".`);
 }
-if (process.env.NEON_BRANCH !== 'dev') {
-  throw new Error(`NEON_BRANCH is "${process.env.NEON_BRANCH ?? 'unset'}" but must be "dev". Never migrate production from this machine.`);
+if (process.env.NEON_BRANCH !== DEV_BRANCH) {
+  throw new Error(`NEON_BRANCH is "${process.env.NEON_BRANCH ?? 'unset'}" but must be "${DEV_BRANCH}". Never migrate production from this machine.`);
 }
 
 export default defineConfig({

@@ -4,5 +4,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["schema.ts", "../drizzle.config.ts"]
+  "include": ["schema.ts"]
 }
