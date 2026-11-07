@@ -99,6 +99,7 @@ The database is moving from Airtable to PostgreSQL on Neon (Neon project `Delta`
 - `neon roles create` defaults to an admin role: always pass `--access read_only` and add grants with SQL.
 - Code that opens a database connection must call `assertDevDatabaseSafe()` from `api/_dbGuard.js` when it loads.
 - Deactivate instead of delete (ADR 0003): `delta_app` has no `DELETE`.
+- The schema is Drizzle: `db/schema.ts` and reviewed SQL in `db/migrations/` (ADR 0004). Change it only through migrations (`docs/database-migrations.md`): edit schema, `npm run db:generate`, review the SQL, `npm run db:migrate` (dev only). Never edit an applied migration.
 
 ## Progress
 - Branch `feat/core` (local): workspaces, `packages/core` (models, dates, overlap, validation, tests) and `apps/mobile` Calendar screen (Expo SDK 58) done.
