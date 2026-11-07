@@ -93,7 +93,7 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 - Write endpoints on Postgres: create, edit and cancel a reservation (replacing the removed `api/reserve.js`), with auth, input validation (dates, phone, amount) and error-code mapping (see `docs/database-migrations.md`). The calendar should also return the reservation `id` and `status`.
 - Migrate the real Airtable data (15 apartments, existing reservations) into Postgres, one time. The Airtable base stays untouched as the fallback until a backup has been restored successfully.
-- **Production (must be done before the Postgres API goes to `main`):** roles on the `production` branch with new passwords, the schema applied there, the data migrated, `DATABASE_URL` (`delta_app`, pooled) in Vercel's Production environment variables, and a safe way to run migrations for production (ADR 0004, open question 1). Until then pushing the Postgres API to `main` makes the production API return 500 (`KNOWN_ISSUES.md` 16).
+- **Production branch (must be done before any real data is entered):** roles on the `production` branch with new passwords, the schema applied there, the data migrated, a safe way to run migrations for production (ADR 0004, open question 1), and `DATABASE_URL` in Vercel switched from the `dev` branch to production. Until then Vercel Production uses the `dev` branch (ADR 0005, `KNOWN_ISSUES.md` 16).
 - Backups: scheduled `pg_dump` to external storage and a restore test into `dev` (ADR 0001).
 - Clean up Vercel: remove `AIRTABLE_TOKEN` and `AIRTABLE_BASE` from the environment variables, and cancel or archive the Airtable base once the backup above is proven.
 - Decide how to handle non-guest calendar blocks (maintenance, owner use).

@@ -13,10 +13,11 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - Schema: `db/schema.ts` (tables `apartments`, `reservations`); statuses `active` (default), `cancelled`, `no_show`, and `inquiry` to be added (`TODO.md`). `cancelled` and `no_show` free the dates, everything else blocks (`api/_status.js`).
   - The 15 real apartments (Atlas, Berlin, Devetka, Egzotik, Eli, Kapiten, Karuzo, Luna, Margareta, Mimoza, Modena, Mona, Neva, Neven, Onyx) are not in Postgres yet: that is the one-time data migration. The `dev` branch has three fake ones (Atlas, Berlin, Devetka) and ten fake reservations from `npm run db:seed`.
   - Overlap logic: `packages/core` plus (to come) the database exclusion constraint, which is the final guard.
-- **Hosting:** Vercel project `airtable-reservation-form` (the name is historical), team `boban2`, Hobby plan. Auto-deploys from `main`. Needs `DATABASE_URL` (role `delta_app`, pooled) in its Production environment variables.
+- **Hosting:** Vercel project `airtable-reservation-form` (the name is historical), team `boban2`, Hobby plan. Auto-deploys from `main`. Its only database variable is `DATABASE_URL` (role `delta_app`, pooled).
+  - **Current decision (ADR 0005):** Vercel Production connects to the Neon `dev` branch until the production branch is ready. So the deployed app shows the fake dev data, and no real data may be entered. Never add `MIGRATION_DATABASE_URL` (owner) or `READONLY_DATABASE_URL` to Vercel.
   - **Public production URL (use this in apps): https://airtable-reservation-form.vercel.app**
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
-  - **Pushing the Postgres API to `main` breaks the production API** until the production Neon branch has the schema, roles and data and Vercel has `DATABASE_URL`. See `TODO.md`, "Production".
+  - **Order matters:** add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500 (`KNOWN_ISSUES.md` 16).
 - **Existing files:**
   - `api/apartments.js` — GET list of active apartments.
   - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + reservations that block dates in month.
@@ -93,7 +94,7 @@ Owner uses **Windows** + VS Code.
 - Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Neon / database rules
-The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema): read them before any database or schema work. No new work on Airtable.
+The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema, 0005 Vercel uses the dev branch for now): read them before any database or schema work. No new work on Airtable.
 - Locally always use the Neon `dev` branch. The app connects as `delta_app`; `neondb_owner` is only for migrations (`MIGRATION_DATABASE_URL`) and never goes into Vercel.
 - After every `neon deploy`, `neon env`, `neon init` or `neon checkout`, run `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use `delta_app` and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner.
 - Production connection strings never go into `.env.local` or any local file, and never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.

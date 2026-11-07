@@ -51,7 +51,7 @@ Rules:
 | `MIGRATION_DATABASE_URL` | `neondb_owner` | no | migration scripts only |
 | `READONLY_DATABASE_URL` | `delta_readonly` | no | viewing and reports |
 
-- Passwords are never printed, logged or committed. Vercel gets only `DATABASE_URL` (and `DATABASE_URL_UNPOOLED` if needed), never the owner or the read-only string.
+- Passwords are never printed, logged or committed. Vercel gets only `DATABASE_URL` (and `DATABASE_URL_UNPOOLED` if needed), never the owner or the read-only string. Note: for now Vercel Production holds the `dev` branch's `delta_app` string, see [ADR 0005](0005-vercel-uses-neon-dev.md).
 - `neon deploy` and `neon env` pull their own variables into `.env.local` and can overwrite `DATABASE_URL` / `DATABASE_URL_UNPOOLED` with the owner's string. Re-check the file after running them.
 
 ## Verification (dev branch, 2026-11-06)
