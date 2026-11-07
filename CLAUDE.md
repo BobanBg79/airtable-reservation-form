@@ -39,8 +39,8 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
 
 ## Auth (new requirement)
 - Today anyone with the link can create bookings. Fix this.
-- Two roles: **editor** (2 people: create/edit/cancel) and **viewer** (everyone else: read-only calendar).
-- Keep it simple: e.g. PIN or magic-link login handled by Vercel functions, session token in secure storage (Expo SecureStore / httpOnly cookie on web). Every write endpoint checks the editor role server-side.
+- Roles, from most to least permissions: `admin` (every permission; the only one that edits other roles' permissions, never its own, and the only one that manages users), `business_owner` (the only one besides admin who sees owner contact, rent and other finance data) and `manager` (enters and manages reservations, and can see reservation amounts). `editor` and `viewer` are dropped. Access model: one role per user, permissions attached to roles (`users`, `roles`, `permissions`, `role_permissions`), named `can_<action>_<entity>` or `can_<action>_<entity>_<sub_entity>` (for example `can_create_reservation`, `can_view_apartment_owner_contact`); viewing and editing are separate permissions; the API checks permissions, not role names, and leaves out the fields a caller may not see. Login is email based; the owner is the first admin and creates the accounts. Details and open questions: `TODO.md`, "Authentication, users, roles and permissions".
+- Keep it simple: e.g. PIN or magic-link login handled by Vercel functions, session token in secure storage (Expo SecureStore / httpOnly cookie on web). Every write endpoint checks the permission server-side.
 - Propose the approach before implementing.
 
 ## Target architecture: MVVM monorepo

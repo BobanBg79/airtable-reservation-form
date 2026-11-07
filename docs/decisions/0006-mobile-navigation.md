@@ -30,7 +30,7 @@ The mobile app was a single calendar screen. The owner asked for several screens
 
 ## Consequences
 
-- **Privacy:** the API has no authentication, so `/api/apartments` now publishes the owner's name and phone and the rent to anyone who knows the URL. Acceptable only because the data is fake (ADR 0005). Real data must not be entered until there is auth, or those fields are limited to editors (`KNOWN_ISSUES.md` 17).
+- **Privacy:** the API has no authentication, so `/api/apartments` now publishes the owner's name and phone and the rent to anyone who knows the URL. Acceptable only because the data is fake (ADR 0005). Real data must not be entered until there is auth, or those fields are limited to the business_owner role and admin (`KNOWN_ISSUES.md` 17).
 - **Landscape:** the bottom bar takes about one calendar row (7 of 9 apartments fit without scrolling on the test phone) (`KNOWN_ISSUES.md` 18).
 - The temporary providers and hooks (`ApartmentsProvider`, `useCalendarData`) have to move into ViewModels before more screens depend on them (`TODO.md`).
 - Detail screens will later hold an apartment's reservations and an edit mode; edit needs auth first.
