@@ -1,5 +1,5 @@
 // `npm run db:seed`: fills the Neon DEV branch with fake data (see scripts/seed-data.mjs):
-// three apartments and ten reservations around today (Europe/Belgrade).
+// nine apartments (real names, made-up details) and their reservations around the base date.
 //
 // Safety, in layers (nothing here is wired into any build, install or deploy step):
 //   1. Manual command only. It lives in scripts/, outside api/, and no npm lifecycle hook calls it.
@@ -8,13 +8,13 @@
 //      Connection details come from .env.local only.
 //   3. Data guard: refuses if apartments or reservations hold any row not created by this seed, so it
 //      can never add fake rows next to real data, even if the checks above were somehow fooled.
-//   4. Runs as delta_app (INSERT only, no DELETE, no DDL), and is idempotent: apartments are matched
-//      by name, and reservations are added only while there are none from the seed.
+//   4. Runs as delta_app (INSERT only, no DELETE, no DDL), and is idempotent: an apartment is matched
+//      by name, a reservation by apartment, guest and dates, so running it again adds only what is missing.
 import { neon } from '@neondatabase/serverless';
 import { todayInBelgrade } from '../packages/core/src/models/date.ts';
 import { loadEnvLocal } from './load-env-local.mjs';
 import { assertLocalScriptAllowed } from './local-guard.mjs';
-import { DEV_APARTMENTS, SEED_MARKER, buildDevReservations } from './seed-data.mjs';
+import { DEV_APARTMENTS, SEED_BASE_DATE, SEED_MARKER, buildDevReservations } from './seed-data.mjs';
 
 const fileEnv = loadEnvLocal();
 if (!fileEnv) {
@@ -55,42 +55,43 @@ for (const a of DEV_APARTMENTS) {
   console.log(`${rows.length ? 'added  ' : 'exists '} apartment ${a.name}`);
 }
 
-// ---- reservations (all or nothing, and only while the seed has none) ----
-const existing = await sql.query('select count(*)::int as n from reservations where created_by = $1', [SEED_MARKER]);
-let reservationsAdded = 0;
-if (existing[0].n > 0) {
-  console.log(`exists  ${existing[0].n} reservations from an earlier seed (left as they are)`);
-} else {
-  const today = todayInBelgrade();
-  const planned = buildDevReservations(today);
+// ---- reservations (each one only if it is not there yet; all in one transaction) ----
+const planned = buildDevReservations();
+const names = [...new Set(planned.map((r) => r.apartment_name))];
+const idRows = await sql.query('select id, name from apartments where name = any($1::text[])', [names]);
+const idByName = new Map(idRows.map((r) => [r.name, r.id]));
+const missing = names.filter((n) => !idByName.has(n));
+if (missing.length) {
+  console.error(`REFUSING TO SEED: apartments missing for the reservations: ${missing.join(', ')}.`);
+  process.exit(1);
+}
 
-  const names = [...new Set(planned.map((r) => r.apartment_name))];
-  const idRows = await sql.query('select id, name from apartments where name = any($1::text[])', [names]);
-  const idByName = new Map(idRows.map((r) => [r.name, r.id]));
-  const missing = names.filter((n) => !idByName.has(n));
-  if (missing.length) {
-    console.error(`REFUSING TO SEED: apartments missing for the reservations: ${missing.join(', ')}.`);
-    process.exit(1);
-  }
-
-  // One transaction, so a failure cannot leave a partial set behind (which would block a rerun).
-  await sql.transaction(
-    planned.map((r) =>
-      sql.query(
-        `insert into reservations
-           (apartment_id, channel, check_in_date, check_out_date, guest_name, guest_phone,
-            total_amount_eur, created_by, updated_by)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$8)`,
-        [idByName.get(r.apartment_name), r.channel, r.check_in_date, r.check_out_date, r.guest_name,
-         r.guest_phone, r.total_amount_eur, SEED_MARKER],
-      ),
+const results = await sql.transaction(
+  planned.map((r) =>
+    sql.query(
+      `insert into reservations
+         (apartment_id, channel, check_in_date, check_out_date, guest_name, guest_phone,
+          total_amount_eur, created_by, updated_by)
+       select $1::bigint, $2::reservation_channel, $3::date, $4::date, $5::text, $6::text, $7::numeric, $8::text, $8::text
+        where not exists (
+          select 1 from reservations
+           where apartment_id = $1::bigint and guest_name = $5::text
+             and check_in_date = $3::date and check_out_date = $4::date)
+       returning id`,
+      [idByName.get(r.apartment_name), r.channel, r.check_in_date, r.check_out_date, r.guest_name,
+       r.guest_phone, r.total_amount_eur, SEED_MARKER],
     ),
-  );
-  reservationsAdded = planned.length;
-  const first = planned.map((r) => r.check_in_date).sort()[0];
-  const last = planned.map((r) => r.check_out_date).sort().at(-1);
-  console.log(`added   ${planned.length} reservations around ${today} (${first} to ${last})`);
+  ),
+);
+const reservationsAdded = results.filter((rows) => rows.length > 0).length;
+console.log(`${reservationsAdded ? 'added  ' : 'exists '} reservations: ${reservationsAdded} added, ${planned.length - reservationsAdded} already there (base date ${SEED_BASE_DATE})`);
+
+// The data is laid out from a fixed day, so it ages. Say so once it is mostly in the past.
+const today = todayInBelgrade();
+const last = planned.map((r) => r.check_out_date).sort().at(-1);
+if (last < today) {
+  console.warn(`NOTE: every seeded stay ends before today (${today}). Move SEED_BASE_DATE forward and reset the dev data.`);
 }
 
 const counts = await sql.query('select (select count(*) from apartments)::int as a, (select count(*) from reservations)::int as r');
-console.log(`\nSeed done on the dev branch: ${apartmentsAdded} apartments and ${reservationsAdded} reservations added; ${counts[0].a} apartments and ${counts[0].r} reservations in total.`);
+console.log(`\nSeed done on the dev branch: ${apartmentsAdded} apartments added; ${counts[0].a} apartments and ${counts[0].r} reservations in total.`);

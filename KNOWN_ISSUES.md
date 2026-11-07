@@ -16,7 +16,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 
 ## Mobile app (`apps/mobile`)
 
-- [ ] **7. Truncated apartment names.** "Margareta" shows as "Margar…" in the 108 px name column (`NAME_W` in `MonthGrid.tsx`). Affects any long name.
+- [x] **7. Truncated apartment names.** Fixed: the name column is 120 px wide (`NAME_W` in `MonthGrid.tsx`, shared by the header and the body) and a longer name shrinks to at most 80% instead of being cut. "Margareta", the longest of the real names, shows in full (checked on the phone).
 - [ ] **8. Small touch targets.** Month arrows are 32 px in landscape (recommended minimum 48 px).
 - [ ] **9. Portrait toolbar.** "November 2026" wraps onto two lines. (In Expo Go the dev gear overlaps "Today"; dev-only, will not exist in a real build.)
 - [ ] **10. Temporary data hook.** `useCalendarData` is a stand-in for `CalendarVM` (task 2 in `CLAUDE.md`); it should hold no logic.

@@ -1,10 +1,18 @@
-// Fake data for the Neon DEV branch only. Only the apartment names are meaningful: they match real
+// Fake data for the Neon DEV branch only. Only the apartment names are meaningful: they are real
 // apartment names shown by the calendar screen (apps/mobile MonthGrid reads `name`; colours derive
 // from it). Everything else is made up. Never put real owner phone numbers, addresses or guests here.
 import { addDays, nightsBetween } from '../packages/core/src/models/date.ts';
 
 export const SEED_MARKER = 'dev-seed'; // value of created_by / updated_by on every seeded row
 
+// All reservation dates are laid out from this fixed day (it was "today" when the data was written).
+// A fixed day keeps the seed idempotent: a reservation is recognised by apartment, guest and dates,
+// so running again adds only what is missing and never creates overlaps. The data ages: when it is
+// all in the past, move this date forward and reset the dev data (see docs/database-migrations.md).
+export const SEED_BASE_DATE = '2026-11-07';
+
+// The first nine of the real apartments, in alphabetical order. "Margareta" is deliberately in the
+// set: it is long enough to show how the name column handles longer names.
 export const DEV_APARTMENTS = [
   {
     name: 'Atlas',
@@ -51,16 +59,117 @@ export const DEV_APARTMENTS = [
     has_dishwasher: false,
     parking_spot: null,
   },
+  {
+    name: 'Egzotik',
+    address: 'Test Street 4, Belgrade',
+    apartment_number: '4C',
+    floor: 1,
+    building_name: 'Lala',
+    area_m2: 41,
+    owner_name: 'Test Owner Four',
+    owner_phone: '+38160000004',
+    monthly_rent_eur: 380,
+    has_bathtub: false,
+    has_terrace: false,
+    has_dishwasher: true,
+    parking_spot: null,
+  },
+  {
+    name: 'Eli',
+    address: 'Test Street 5, Belgrade',
+    apartment_number: '5',
+    floor: 2,
+    building_name: 'Mimoza',
+    area_m2: 33,
+    owner_name: 'Test Owner Five',
+    owner_phone: '+38160000005',
+    monthly_rent_eur: 300,
+    has_bathtub: true,
+    has_terrace: false,
+    has_dishwasher: false,
+    parking_spot: 'P5',
+  },
+  {
+    name: 'Kapiten',
+    address: 'Test Street 6, Belgrade',
+    apartment_number: '6A',
+    floor: 5,
+    building_name: 'Suncokret',
+    area_m2: 58,
+    owner_name: 'Test Owner Six',
+    owner_phone: '+38160000006',
+    monthly_rent_eur: 520,
+    has_bathtub: true,
+    has_terrace: true,
+    has_dishwasher: true,
+    parking_spot: 'P6',
+  },
+  {
+    name: 'Karuzo',
+    address: 'Test Street 7, Belgrade',
+    apartment_number: '7',
+    floor: 0,
+    building_name: 'Lala',
+    area_m2: 36,
+    owner_name: 'Test Owner Seven',
+    owner_phone: '+38160000007',
+    monthly_rent_eur: 320,
+    has_bathtub: false,
+    has_terrace: true,
+    has_dishwasher: false,
+    parking_spot: null,
+  },
+  {
+    name: 'Luna',
+    address: 'Test Street 8, Belgrade',
+    apartment_number: '8B',
+    floor: 4,
+    building_name: 'Mimoza',
+    area_m2: 47,
+    owner_name: 'Test Owner Eight',
+    owner_phone: '+38160000008',
+    monthly_rent_eur: 430,
+    has_bathtub: true,
+    has_terrace: false,
+    has_dishwasher: true,
+    parking_spot: null,
+  },
+  {
+    name: 'Margareta',
+    address: 'Test Street 9, Belgrade',
+    apartment_number: '9',
+    floor: 7,
+    building_name: 'Suncokret',
+    area_m2: 62,
+    owner_name: 'Test Owner Nine',
+    owner_phone: '+38160000009',
+    monthly_rent_eur: 560,
+    has_bathtub: true,
+    has_terrace: true,
+    has_dishwasher: true,
+    parking_spot: 'P9',
+  },
 ];
 
 // Price per night (EUR) used to make up a total for each apartment.
-const NIGHTLY_RATE_EUR = { Atlas: 55, Berlin: 70, Devetka: 60 };
+const NIGHTLY_RATE_EUR = {
+  Atlas: 55,
+  Berlin: 70,
+  Devetka: 60,
+  Egzotik: 65,
+  Eli: 50,
+  Kapiten: 75,
+  Karuzo: 58,
+  Luna: 62,
+  Margareta: 80,
+};
 
-// Ten reservations laid out relative to `today` (YYYY-MM-DD, Europe/Belgrade), so the calendar
-// always has stays running now and in the coming weeks. Offsets are in days from today.
-// The set is deliberately varied: a stay in progress, same-day changeovers (a check-out on the day
-// another guest checks in), short and long stays, and one that crosses into the next month.
-// No two reservations of the same apartment overlap (the database does not enforce that yet).
+// Twenty-five reservations, laid out in days from the base date. The set is deliberately varied:
+// stays in progress, one starting on the base day, same-day changeovers (a check-out on the day
+// another guest checks in), short and long stays, all four channels, and stays that run into December.
+// No two reservations of the same apartment overlap (the database does not enforce that yet), and
+// every guest name is unique within its apartment, which is what makes a reservation recognisable.
+// The first ten rows were seeded earlier and must keep their exact dates (a test pins them).
 const PLAN = [
   // [apartment, check-in offset, check-out offset, channel, guest, phone]
   ['Atlas', -2, 2, 'direct', 'Marko Jovanović', '+38160000101'], // in progress
@@ -69,17 +178,33 @@ const PLAN = [
   ['Atlas', 20, 23, 'local_agency', 'Milica Đorđević', '+38160000104'],
   ['Berlin', -1, 3, 'booking', 'Luka Stanković', '+38160000105'], // in progress
   ['Berlin', 5, 8, 'direct', 'Jelena Ilić', '+38160000106'],
-  ['Berlin', 10, 24, 'airbnb', 'Anna Becker', '+38160000107'], // two weeks, can cross a month end
+  ['Berlin', 10, 24, 'airbnb', 'Anna Becker', '+38160000107'], // two weeks, runs into December
   ['Devetka', 1, 4, 'direct', 'Nikola Pavlović', '+38160000108'],
   ['Devetka', 4, 7, 'local_agency', 'Teodora Marković', '+38160000109'], // same-day changeover
   ['Devetka', 12, 15, 'booking', 'Peter Novak', '+38160000110'],
+
+  ['Berlin', 26, 30, 'direct', 'Miloš Todorović', '+38160000111'], // December
+  ['Devetka', -4, 1, 'direct', 'Ana Marić', '+38160000112'], // in progress, hands over to Nikola Pavlović
+  ['Egzotik', -3, 1, 'booking', 'Sofia Rossi', '+38160000113'], // in progress
+  ['Egzotik', 3, 10, 'airbnb', 'Hans Müller', '+38160000114'],
+  ['Eli', 0, 4, 'direct', 'Dragana Simić', '+38160000115'], // starts on the base day
+  ['Eli', 7, 10, 'local_agency', 'Vuk Lazić', '+38160000116'],
+  ['Kapiten', -5, 3, 'airbnb', 'Emma Wilson', '+38160000117'], // in progress, eight nights
+  ['Kapiten', 3, 6, 'direct', 'Bogdan Ristić', '+38160000118'], // same-day changeover
+  ['Kapiten', 14, 21, 'booking', 'Lucas Martin', '+38160000119'],
+  ['Karuzo', 2, 5, 'local_agency', 'Katarina Popović', '+38160000120'],
+  ['Karuzo', 8, 12, 'direct', 'Đorđe Vasić', '+38160000121'],
+  ['Luna', -1, 5, 'booking', 'Olga Ivanova', '+38160000122'], // in progress
+  ['Luna', 11, 18, 'airbnb', 'Giulia Bianchi', '+38160000123'],
+  ['Margareta', 1, 8, 'direct', 'Vladimir Kostić', '+38160000124'],
+  ['Margareta', 8, 11, 'booking', 'Sara Cohen', '+38160000125'], // same-day changeover
 ];
 
-/** The ten dev reservations for a given `today`. Pure, so it can be tested for any date. */
-export function buildDevReservations(today) {
+/** The dev reservations for a given base date. Pure, so it can be tested for any date. */
+export function buildDevReservations(base = SEED_BASE_DATE) {
   return PLAN.map(([apartment_name, from, to, channel, guest_name, guest_phone]) => {
-    const check_in_date = addDays(today, from);
-    const check_out_date = addDays(today, to);
+    const check_in_date = addDays(base, from);
+    const check_out_date = addDays(base, to);
     const nights = nightsBetween(check_in_date, check_out_date);
     return {
       apartment_name,

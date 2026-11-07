@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { nightsBetween } from '../packages/core/src/models/date.ts';
-import { DEV_APARTMENTS, SEED_MARKER, buildDevReservations } from './seed-data.mjs';
+import { DEV_APARTMENTS, SEED_BASE_DATE, SEED_MARKER, buildDevReservations } from './seed-data.mjs';
 
 const PHONE = /^[+]?[0-9]{6,15}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -12,12 +12,14 @@ const CHANNELS = ['direct', 'booking', 'airbnb', 'local_agency'];
 test('seed apartments have unique names and are marked as seed data', () => {
   const names = DEV_APARTMENTS.map((a) => a.name);
   assert.equal(new Set(names).size, names.length);
-  assert.equal(DEV_APARTMENTS.length, 3);
+  assert.equal(DEV_APARTMENTS.length, 9);
   assert.equal(SEED_MARKER, 'dev-seed');
 });
 
-test('seed apartments use real calendar names', () => {
-  assert.deepEqual(DEV_APARTMENTS.map((a) => a.name), ['Atlas', 'Berlin', 'Devetka']);
+test('seed apartments are the first nine real apartment names, in order', () => {
+  assert.deepEqual(DEV_APARTMENTS.map((a) => a.name), [
+    'Atlas', 'Berlin', 'Devetka', 'Egzotik', 'Eli', 'Kapiten', 'Karuzo', 'Luna', 'Margareta',
+  ]);
 });
 
 test('seed apartments satisfy the schema checks (area > 0, rent >= 0, phone format)', () => {
@@ -30,23 +32,52 @@ test('seed apartments satisfy the schema checks (area > 0, rent >= 0, phone form
   }
 });
 
-// ---- reservations: laid out relative to a given "today" ----
-
-// Several anchors, including a DST change (2027-03-28) and a month/year boundary.
-const TODAYS = ['2026-11-07', '2026-12-28', '2027-03-26', '2028-02-27'];
-
-test('ten reservations over the three seed apartments', () => {
-  const res = buildDevReservations('2026-11-07');
-  assert.equal(res.length, 10);
-  const apartmentNames = new Set(DEV_APARTMENTS.map((a) => a.name));
-  for (const r of res) assert.ok(apartmentNames.has(r.apartment_name), r.apartment_name);
-  assert.deepEqual([...new Set(res.map((r) => r.apartment_name))].sort(), ['Atlas', 'Berlin', 'Devetka']);
+test('owner phones are unique and clearly fake', () => {
+  const phones = DEV_APARTMENTS.map((a) => a.owner_phone);
+  assert.equal(new Set(phones).size, phones.length);
+  for (const p of phones) assert.match(p, /^\+3816000000\d$/);
 });
 
-test('every reservation satisfies the schema checks, for any "today"', () => {
-  for (const today of TODAYS) {
-    for (const r of buildDevReservations(today)) {
-      const label = `${today} ${r.apartment_name} ${r.guest_name}`;
+// ---- reservations: laid out from a base date ----
+
+// Several base dates, including a DST change (2027-03-28) and a month/year boundary.
+const BASES = [SEED_BASE_DATE, '2026-12-28', '2027-03-26', '2028-02-27'];
+
+test('25 reservations over the nine seed apartments, every apartment has some', () => {
+  const res = buildDevReservations();
+  assert.equal(res.length, 25);
+  const names = new Set(DEV_APARTMENTS.map((a) => a.name));
+  for (const r of res) assert.ok(names.has(r.apartment_name), r.apartment_name);
+  for (const n of names) assert.ok(res.some((r) => r.apartment_name === n), `${n} has a reservation`);
+  for (const n of ['Egzotik', 'Eli', 'Kapiten', 'Karuzo', 'Luna', 'Margareta']) {
+    assert.ok(res.filter((r) => r.apartment_name === n).length >= 2, `${n} has at least two`);
+  }
+});
+
+test('the first ten reservations keep their exact dates (they are already in the dev database)', () => {
+  // The seed recognises a reservation by apartment, guest and dates. If these change, the seed would
+  // add a second copy next to the one already stored. Change them only together with a data reset.
+  const first = buildDevReservations(SEED_BASE_DATE)
+    .slice(0, 10)
+    .map((r) => [r.apartment_name, r.guest_name, r.check_in_date, r.check_out_date]);
+  assert.deepEqual(first, [
+    ['Atlas', 'Marko Jovanović', '2026-11-05', '2026-11-09'],
+    ['Atlas', 'Ivana Petrović', '2026-11-09', '2026-11-13'],
+    ['Atlas', 'Stefan Nikolić', '2026-11-16', '2026-11-23'],
+    ['Atlas', 'Milica Đorđević', '2026-11-27', '2026-11-30'],
+    ['Berlin', 'Luka Stanković', '2026-11-06', '2026-11-10'],
+    ['Berlin', 'Jelena Ilić', '2026-11-12', '2026-11-15'],
+    ['Berlin', 'Anna Becker', '2026-11-17', '2026-12-01'],
+    ['Devetka', 'Nikola Pavlović', '2026-11-08', '2026-11-11'],
+    ['Devetka', 'Teodora Marković', '2026-11-11', '2026-11-14'],
+    ['Devetka', 'Peter Novak', '2026-11-19', '2026-11-22'],
+  ]);
+});
+
+test('every reservation satisfies the schema checks, for any base date', () => {
+  for (const base of BASES) {
+    for (const r of buildDevReservations(base)) {
+      const label = `${base} ${r.apartment_name} ${r.guest_name}`;
       assert.match(r.check_in_date, ISO_DATE, label);
       assert.match(r.check_out_date, ISO_DATE, label);
       assert.ok(r.check_out_date > r.check_in_date, `${label}: check-out after check-in`);
@@ -59,35 +90,54 @@ test('every reservation satisfies the schema checks, for any "today"', () => {
   }
 });
 
-test('no two reservations of the same apartment overlap, for any "today"', () => {
-  for (const today of TODAYS) {
-    const res = buildDevReservations(today);
+test('no two reservations of the same apartment overlap, for any base date', () => {
+  for (const base of BASES) {
+    const res = buildDevReservations(base);
     for (const a of res) {
       for (const b of res) {
         if (a === b || a.apartment_name !== b.apartment_name) continue;
         const overlap = a.check_in_date < b.check_out_date && a.check_out_date > b.check_in_date;
-        assert.equal(overlap, false, `${today}: ${a.guest_name} overlaps ${b.guest_name} in ${a.apartment_name}`);
+        assert.equal(overlap, false, `${base}: ${a.guest_name} overlaps ${b.guest_name} in ${a.apartment_name}`);
       }
     }
   }
 });
 
-test('the set is varied: in progress, same-day changeovers, short and long stays, every channel', () => {
-  const today = '2026-11-07';
-  const res = buildDevReservations(today);
-  assert.ok(res.some((r) => r.check_in_date < today && r.check_out_date > today), 'a stay in progress');
-  const changeover = res.some((a) => res.some((b) => a !== b && a.apartment_name === b.apartment_name && a.check_out_date === b.check_in_date));
-  assert.ok(changeover, 'a same-day changeover');
+test('a reservation can be recognised: apartment, guest and dates are unique', () => {
+  for (const base of BASES) {
+    const keys = buildDevReservations(base).map((r) => [r.apartment_name, r.guest_name, r.check_in_date, r.check_out_date].join('|'));
+    assert.equal(new Set(keys).size, keys.length, base);
+  }
+  // Guest names are unique within an apartment too, so a rename of the dates never matches the wrong row.
+  const res = buildDevReservations();
+  const perApartment = res.map((r) => `${r.apartment_name}|${r.guest_name}`);
+  assert.equal(new Set(perApartment).size, perApartment.length);
+});
+
+test('guest phones are unique and clearly fake', () => {
+  const phones = buildDevReservations().map((r) => r.guest_phone);
+  assert.equal(new Set(phones).size, phones.length);
+  for (const p of phones) assert.match(p, /^\+38160000\d{3}$/);
+});
+
+test('the set is varied: in progress, same-day changeovers, short and long stays, every channel, December', () => {
+  const base = SEED_BASE_DATE;
+  const res = buildDevReservations(base);
+  assert.ok(res.some((r) => r.check_in_date < base && r.check_out_date > base), 'a stay in progress');
+  assert.ok(res.some((r) => r.check_in_date === base), 'a stay starting on the base day');
+  const changeovers = res.filter((a) => res.some((b) => a !== b && a.apartment_name === b.apartment_name && a.check_out_date === b.check_in_date));
+  assert.ok(changeovers.length >= 4, 'several same-day changeovers');
   const nights = res.map((r) => nightsBetween(r.check_in_date, r.check_out_date));
   assert.ok(Math.min(...nights) <= 3 && Math.max(...nights) >= 7, 'short and long stays');
   assert.deepEqual([...new Set(res.map((r) => r.channel))].sort(), [...CHANNELS].sort());
-  assert.ok(res.every((r) => r.check_out_date > today), 'all stays are current or upcoming');
+  assert.ok(res.some((r) => r.check_in_date >= '2026-12-01'), 'a stay in December');
+  assert.ok(res.every((r) => r.check_out_date > base), 'all stays are current or upcoming');
 });
 
 test('amounts are nights times the apartment rate', () => {
-  const res = buildDevReservations('2026-11-07');
-  const atlas = res.find((r) => r.guest_name === 'Marko Jovanović');
-  assert.equal(atlas.total_amount_eur, '220.00'); // 4 nights x 55
-  const berlin = res.find((r) => r.guest_name === 'Anna Becker');
-  assert.equal(berlin.total_amount_eur, '980.00'); // 14 nights x 70
+  const res = buildDevReservations(SEED_BASE_DATE);
+  const find = (guest) => res.find((r) => r.guest_name === guest);
+  assert.equal(find('Marko Jovanović').total_amount_eur, '220.00'); // Atlas, 4 nights x 55
+  assert.equal(find('Anna Becker').total_amount_eur, '980.00'); // Berlin, 14 nights x 70
+  assert.equal(find('Vladimir Kostić').total_amount_eur, '560.00'); // Margareta, 7 nights x 80
 });

@@ -20,7 +20,7 @@ Until the production branch is ready, **Vercel's Production environment connects
 
 ## What this means
 
-- **The deployed app shows the dev data** (three fake apartments and ten fake reservations from `npm run db:seed`). That is fine while the owner is the only user.
+- **The deployed app shows the dev data** (nine apartments with made-up details and 25 fake reservations from `npm run db:seed`). That is fine while the owner is the only user.
 - **No real guest data may be entered while this is in place.** The `dev` branch is disposable.
 - **`dev` is now shared by local work and the deployed API.** Re-seeding, resetting or wiping `dev` changes what the deployed app shows, and a schema migration applied to `dev` is live for the deployed API immediately: apply migrations that the deployed code does not understand only after (or together with) the code that needs them, and avoid breaking changes.
 - **The dev safety guard does not run on Vercel** (`assertDevDatabaseSafe()` skips Vercel production on purpose), so nothing in the code checks the branch there. This ADR and the checklist below are the control.

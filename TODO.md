@@ -101,5 +101,5 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 ## Done
 
 - Drizzle migrations and the initial schema on the Neon `dev` branch (`fd79903`, `c994e01`).
-- Dev seed: three fake apartments and ten fake reservations around today (`npm run db:seed`).
+- Dev seed: nine apartments (real names, made-up details) and 25 fake reservations around 2026-11-07 (`npm run db:seed`).
 - The API reads only from Neon (`api/calendar.js`, `api/apartments.js`); all Airtable code and the old `api/reserve.js` are removed. Local API for the app: `npm run dev:api`.

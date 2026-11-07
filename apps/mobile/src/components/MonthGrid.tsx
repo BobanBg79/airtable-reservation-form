@@ -16,7 +16,7 @@ import { barColors, type AppTheme } from '../theme';
 // One column width shared by the header and the body: they cannot drift apart.
 const DAY_W = 46;
 const ROW_H = 28;
-const NAME_W = 108;
+const NAME_W = 120; // fits the longest real name ("Margareta") at full size
 const HEADER_H = 38;
 const BAR_GAP = 2;
 
@@ -88,7 +88,8 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
           {data.apartments.map((a) => (
             <View key={a.id} style={s.nameCell}>
               <View style={[s.dot, { backgroundColor: barColors(hues.get(a.name) ?? 0, theme.dark).dot }]} />
-              <Text variant="titleSmall" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {/* A longer name shrinks a little (down to 80%) instead of being cut to "Margar…". */}
+              <Text variant="titleSmall" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ flexShrink: 1 }}>
                 {a.name}
               </Text>
             </View>
