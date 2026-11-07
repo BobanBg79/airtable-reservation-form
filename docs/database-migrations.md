@@ -35,15 +35,25 @@ This creates an empty `.sql` file in `db/migrations/`; write the SQL in it. Sepa
 
 ## Seeding the dev branch (fake data)
 
-`npm run db:seed` puts three fake apartments into the Neon `dev` branch so the app has something to show. The names (`Atlas`, `Berlin`, `Devetka`) match real apartment names from the calendar screen; everything else is made up (`scripts/seed-data.mjs`). It is idempotent: running it again adds nothing.
+`npm run db:seed` puts fake data into the Neon `dev` branch so the app has something to show: three apartments and ten reservations. The apartment names (`Atlas`, `Berlin`, `Devetka`) match real names from the calendar screen; everything else is made up (`scripts/seed-data.mjs`). The reservations are laid out relative to today (Europe/Belgrade): stays in progress, same-day changeovers, short and long stays, one that can cross a month end, and no overlaps within an apartment. It is idempotent: apartments are matched by name, and reservations are added only while the seed has none, so running it again adds nothing. Because the dates are relative to the day it ran, the data ages; to refresh it, reset the `dev` data as the owner and run the seed again.
+
+The seed imports the date helpers from `packages/core` (TypeScript), so it needs a Node version that strips types (22.18 or newer).
 
 It can only ever touch `dev`, in layers:
 1. It is a manual command in `scripts/`. No install, build or deploy step runs it, and nothing in `api/` imports it.
-2. It refuses on Vercel, in CI, with `NODE_ENV=production`, with a `DATABASE_URL` set in the shell, with a role other than `delta_app`, or a branch other than `dev`. Connection details come from `.env.local` only. The role and branch rule is the same one `npm run check:env` uses (`api/_dbGuard.js`).
-3. It refuses if `apartments` contains any row not created by the seed (`created_by = 'dev-seed'`), so it cannot add fake rows next to real data.
+2. It refuses on Vercel, in CI, with `NODE_ENV=production`, with a `DATABASE_URL` set in the shell, with a role other than `delta_app`, or a branch other than `dev` (`scripts/local-guard.mjs`, shared with `npm run dev:api`). Connection details come from `.env.local` only. The role and branch rule is the same one `npm run check:env` uses (`api/_dbGuard.js`).
+3. It refuses if `apartments` or `reservations` contain any row not created by the seed (`created_by = 'dev-seed'`), so it cannot add fake rows next to real data.
 4. It runs as `delta_app` (insert only), so it cannot delete or change the schema.
 
-The real apartments for production come from the one-time Airtable data migration, not from a seed. Never put real owner phone numbers or addresses in `scripts/seed-data.mjs`. Note that the app reads apartments from Airtable until `api/*` moves to Postgres, so the seeded rows are not visible in the calendar yet.
+The real apartments for production come from the one-time data migration, not from a seed. Never put real owner phone numbers, addresses or guests in `scripts/seed-data.mjs`.
+
+## Running the API and the app locally
+
+The data source is always Neon; there is no switch.
+
+1. `npm run dev:api` serves the functions in `api/` on `http://127.0.0.1:3000` against the `dev` branch (no `vercel dev` or Vercel login needed). It refuses unsafe settings on its own (`scripts/local-guard.mjs`: role `delta_app`, branch `dev`, nothing production-like), so no separate `check:env` is needed. Restart it after editing a file in `api/`.
+2. `apps/mobile/.env.local` (git-ignored) sets `EXPO_PUBLIC_API_URL=http://localhost:3000`. Restart Expo with `npx expo start -c` after changing it.
+3. A phone on USB reaches the server with `adb reverse tcp:3000 tcp:3000` (the server only listens on `127.0.0.1`, so nothing is exposed to the network).
 
 ## Permissions on new tables
 

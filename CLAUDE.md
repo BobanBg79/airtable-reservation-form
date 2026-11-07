@@ -9,27 +9,29 @@ You are a senior frontend engineer and an expert in React, React Native (Expo) a
 Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people enter reservations, others only view. Must work great on phones.
 
 ## Current state (keep working until the rewrite replaces it)
-- **Database:** Airtable base `Delta Rezervacije` (`appJVQJgv7iD74lR1`).
-  - Table `Apartments` (`tbl28fxdzAJ9oYKsC`): `Name`, `Note`, `Reservations` (link).
-  - Table `Reservations` (`tbl9OHuC2m4S8tT6Q`): `Guest`, `Apartment` (link to Apartments), `Check-in` (date), `Check-out` (date), `Phone`, `Status` (single select, English names only: `Active` = default for every new reservation, `Inquiry` = short-term hold that blocks the calendar, `Cancelled`, `No show`; `Cancelled` and `No show` free the dates, everything else blocks — see `api/_status.js`), `Amount` (EUR), `Note`.
-  - Apartments: Atlas, Berlin, Devetka, Egzotik, Eli, Kapiten, Karuzo, Luna, Margareta, Mimoza, Modena, Mona, Neva, Neven, Onyx.
-  - Airtable automations are being removed: overlap logic lives only in our code (`api/reserve.js`, `packages/core`). Add automations back later only if needed.
-- **Hosting:** Vercel project `airtable-reservation-form`, team `boban2`, Hobby plan. Env vars: `AIRTABLE_TOKEN`, `AIRTABLE_BASE`. Auto-deploys from `main`.
+- **Database:** PostgreSQL on Neon (project `Delta`, `damp-dream-71823503`). The only data source: the code no longer talks to Airtable (the Airtable base still holds the old data until it is migrated; see `TODO.md`).
+  - Schema: `db/schema.ts` (tables `apartments`, `reservations`); statuses `active` (default), `cancelled`, `no_show`, and `inquiry` to be added (`TODO.md`). `cancelled` and `no_show` free the dates, everything else blocks (`api/_status.js`).
+  - The 15 real apartments (Atlas, Berlin, Devetka, Egzotik, Eli, Kapiten, Karuzo, Luna, Margareta, Mimoza, Modena, Mona, Neva, Neven, Onyx) are not in Postgres yet: that is the one-time data migration. The `dev` branch has three fake ones (Atlas, Berlin, Devetka) and ten fake reservations from `npm run db:seed`.
+  - Overlap logic: `packages/core` plus (to come) the database exclusion constraint, which is the final guard.
+- **Hosting:** Vercel project `airtable-reservation-form` (the name is historical), team `boban2`, Hobby plan. Auto-deploys from `main`. Needs `DATABASE_URL` (role `delta_app`, pooled) in its Production environment variables.
   - **Public production URL (use this in apps): https://airtable-reservation-form.vercel.app**
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
+  - **Pushing the Postgres API to `main` breaks the production API** until the production Neon branch has the schema, roles and data and Vercel has `DATABASE_URL`. See `TODO.md`, "Production".
 - **Existing files:**
-  - `api/apartments.js` — GET list of apartments.
-  - `api/reserve.js` — POST booking; rejects overlaps with 409 before saving.
+  - `api/apartments.js` — GET list of active apartments.
   - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + reservations that block dates in month.
+  - There is no write endpoint yet: `api/reserve.js` (Airtable) was removed; create, edit and cancel are to be written on Postgres (`TODO.md`).
+  - Helpers (not routes): `api/_db.js` (the Neon connection), `api/_pgReads.js` (read queries), `api/_status.js`, `api/_dbGuard.js`.
   - The old `index.html` / `calendar.html` pages were deleted; the apps are the only clients.
+- **Local API for the app:** `npm run dev:api` serves `api/` on `http://127.0.0.1:3000` from the Neon `dev` branch (no `vercel dev` needed). `apps/mobile/.env.local` points the app at it (`EXPO_PUBLIC_API_URL`); a phone on USB needs `adb reverse tcp:3000 tcp:3000`.
 
 ## Business rules (must hold in every client)
 - Overlap = same apartment AND `newCheckIn < existingCheckOut` AND `newCheckOut > existingCheckIn`.
 - Same-day changeover allowed (one leaves, next arrives same day).
 - Cancelled bookings never block dates.
 - Check-out must be after check-in. Guest, apartment, check-in, check-out required.
-- The server (`api/reserve.js`) is the source of truth for overlap; clients may pre-check for UX but never skip the server check.
-- Airtable token never reaches a client. Clients only call our `/api/*` endpoints.
+- The server and the database are the source of truth for overlap (the reservation endpoint, to be written on Postgres, plus the exclusion constraint); clients may pre-check for UX but never skip the server check.
+- Database credentials never reach a client. Clients only call our `/api/*` endpoints.
 - Time zone: `Europe/Belgrade`. Dates are date-only (`YYYY-MM-DD`), never shift them via UTC conversion.
 - Currency: EUR.
 
@@ -91,7 +93,7 @@ Owner uses **Windows** + VS Code.
 - Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Neon / database rules
-The database is moving from Airtable to PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`). Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete): read them before any database or schema work. No new work on Airtable.
+The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema): read them before any database or schema work. No new work on Airtable.
 - Locally always use the Neon `dev` branch. The app connects as `delta_app`; `neondb_owner` is only for migrations (`MIGRATION_DATABASE_URL`) and never goes into Vercel.
 - After every `neon deploy`, `neon env`, `neon init` or `neon checkout`, run `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use `delta_app` and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner.
 - Production connection strings never go into `.env.local` or any local file, and never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.

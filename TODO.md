@@ -91,13 +91,15 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 ## Backlog
 
-- Switch `api/*` from Airtable to Postgres: connection module that calls `assertDevDatabaseSafe()`, endpoints for list, calendar, create, edit and cancel, with error-code mapping (see `docs/database-migrations.md`).
-- Migrate the existing Airtable data into Postgres.
-- Production: roles on the `production` branch with new passwords, `DATABASE_URL` only in Vercel, and a safe way to run migrations for production (ADR 0004, open question 1).
+- Write endpoints on Postgres: create, edit and cancel a reservation (replacing the removed `api/reserve.js`), with auth, input validation (dates, phone, amount) and error-code mapping (see `docs/database-migrations.md`). The calendar should also return the reservation `id` and `status`.
+- Migrate the real Airtable data (15 apartments, existing reservations) into Postgres, one time. The Airtable base stays untouched as the fallback until a backup has been restored successfully.
+- **Production (must be done before the Postgres API goes to `main`):** roles on the `production` branch with new passwords, the schema applied there, the data migrated, `DATABASE_URL` (`delta_app`, pooled) in Vercel's Production environment variables, and a safe way to run migrations for production (ADR 0004, open question 1). Until then pushing the Postgres API to `main` makes the production API return 500 (`KNOWN_ISSUES.md` 16).
 - Backups: scheduled `pg_dump` to external storage and a restore test into `dev` (ADR 0001).
-- Retire Airtable once the app runs on Postgres.
+- Clean up Vercel: remove `AIRTABLE_TOKEN` and `AIRTABLE_BASE` from the environment variables, and cancel or archive the Airtable base once the backup above is proven.
 - Decide how to handle non-guest calendar blocks (maintenance, owner use).
 
 ## Done
 
 - Drizzle migrations and the initial schema on the Neon `dev` branch (`fd79903`, `c994e01`).
+- Dev seed: three fake apartments and ten fake reservations around today (`npm run db:seed`).
+- The API reads only from Neon (`api/calendar.js`, `api/apartments.js`); all Airtable code and the old `api/reserve.js` are removed. Local API for the app: `npm run dev:api`.

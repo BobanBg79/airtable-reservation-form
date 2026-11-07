@@ -4,14 +4,15 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 
 ## Security and correctness (`api/`)
 
-- [ ] **1. No authentication.** Anyone can `POST /api/reserve`. Deferred on purpose; see "Auth" in `CLAUDE.md` (propose the approach before implementing).
-> Database decision: Airtable is being replaced by PostgreSQL on Neon (`docs/decisions/0001-database.md`). Items 2 to 4 below are obsolete for that reason; no further work on Airtable (no edit/cancel endpoint, no Airtable automations).
+- [ ] **1. No authentication.** There is no write endpoint at the moment (`api/reserve.js` was removed with Airtable), so nothing can be written through the API. Auth must be in place before the new create, edit and cancel endpoints exist; see "Auth" in `CLAUDE.md` (propose the approach before implementing).
 
-- [x] **2. Status model.** Done and deployed: `Active` (default), `Inquiry`, `Cancelled`, `No show` in `api/_status.js`; Airtable options renamed, both automations deleted. Carries over to Postgres: the exclusion constraint applies only to `Active` and `Inquiry`. Open follow-ups: let the calendar API return `status` so the app can draw `Inquiry` differently, and let the reservation form create an `Inquiry`.
-- [x] **3. Race condition.** Obsolete: the Postgres exclusion constraint on (apartment, date range) prevents overlapping bookings atomically, including for edits. Map the constraint error to HTTP 409.
-- [x] **4. Unchecked optional fields.** Obsolete for Airtable: `api/reserve.js` is rewritten on Postgres. Keep the intent: validate `phone`, `note`, `amount` (type, length) in the new endpoint and return 400.
+> Database decision: Airtable was replaced by PostgreSQL on Neon (`docs/decisions/0001-database.md`) and the code no longer uses it. Items 2 to 4 below are closed for that reason.
+
+- [x] **2. Status model.** In Postgres: `active` (default), `cancelled`, `no_show`; `cancelled` and `no_show` free the dates (`api/_status.js`). Open follow-ups: add `inquiry` (`TODO.md`), let the calendar API return `status` so the app can draw an inquiry differently, and let the reservation form create one.
+- [x] **3. Race condition.** Closed by design: the Postgres exclusion constraint on (apartment, date range) will prevent overlapping bookings atomically, including for edits (`TODO.md`, task 2). Map the constraint error to HTTP 409.
+- [x] **4. Unchecked optional fields.** The old endpoint is gone. Keep the intent: validate `phone`, `note`, `amount` (type, length) in the new endpoint and return 400.
 - [ ] **5. UTC default month.** `api/calendar.js` uses UTC for the default month when `?month=` is missing. The mobile app always sends the month, so low priority.
-- [ ] **6. Few tests for `api/`.** Only `api/_dbGuard.js` has tests so far (`npm run test:api`, Node's built-in `node:test`, runs as part of `npm test`). The handlers are untested; the input validation added in `60f859a` was only checked with a throw-away script. Add tests the same way (call the handler with a fake `req`/`res`; validation returns before any network call).
+- [ ] **6. Handlers in `api/` are untested.** The guard (`_dbGuard.js`) and the read queries (`_pgReads.js`, with a fake SQL client) have tests (`npm run test:api`, Node's built-in `node:test`, part of `npm test`), but `calendar.js` and `apartments.js` themselves do not (month parsing, error response). Add tests the same way (call the handler with a fake `req`/`res`; the SQL client needs to be injectable first).
 
 ## Mobile app (`apps/mobile`)
 
@@ -19,15 +20,16 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [ ] **8. Small touch targets.** Month arrows are 32 px in landscape (recommended minimum 48 px).
 - [ ] **9. Portrait toolbar.** "November 2026" wraps onto two lines. (In Expo Go the dev gear overlaps "Today"; dev-only, will not exist in a real build.)
 - [ ] **10. Temporary data hook.** `useCalendarData` is a stand-in for `CalendarVM` (task 2 in `CLAUDE.md`); it should hold no logic.
-- [ ] **11. Client-generated reservation ids.** `packages/core/src/services/apiClient.ts` builds ids as `apartmentId:checkIn:checkOut:index` because `api/calendar.js` returns no Airtable record id. Fine for display; needed for edit/cancel, so return the real id from the API first.
+- [ ] **11. Client-generated reservation ids.** `packages/core/src/services/apiClient.ts` builds ids as `apartmentId:checkIn:checkOut:index` because `api/calendar.js` does not return the reservation id yet (Postgres has it: `reservations.id`). Fine for display; needed for edit/cancel, so return the real id from the API and use it in `mapCalendarResponse` first.
 
 ## Repo and environment
 
 - [x] **12. Legacy pages.** `index.html` and `calendar.html` deleted (owner OK). They disappear from production on the next push to `main`.
-- [ ] **12b. Shared logic still duplicated.** `api/_status.js` and the validation/overlap code in `api/reserve.js` duplicate `packages/core`. Move it to `core` and import it from `api/`; needs a verified Vercel build first (`core` is TypeScript source only, no build output).
+- [ ] **12b. Shared logic still duplicated.** The overlap and validation rules in `packages/core` will be needed by the new write endpoint in `api/` as well. Move them to a shared place and import them from `api/`; needs a verified Vercel build first (`core` is TypeScript source only, no build output).
 - [ ] **13. Vercel builds the whole workspace.** Production installs the Expo dependencies although `api/*` does not use them. The build passes but is slower than necessary; fix with `.vercelignore` or a custom install command.
 - [ ] **14. `adb` not on PATH in the current VS Code session.** The folder is already in the user PATH; restarting VS Code picks it up. Until then use the full WinGet path to `adb.exe`.
 - [ ] **15. `npm audit`: 5 moderate vulnerabilities** (2026-11-06), all in the Expo dev toolchain, none in code we ship: `expo`, `@expo/cli`, `@expo/fingerprint` (all via `glob`/`minimatch`), `glob` (AbortSignal cancellation bypass allows post-timeout filesystem traversal) and `minimatch` (denial of service via globparts amplification). The only suggested fix is `expo@53.0.11`, a downgrade from SDK 58; do NOT run `npm audit fix --force`. Revisit with the next Expo SDK upgrade.
+- [ ] **16. The Postgres API cannot go to production yet.** `api/calendar.js` and `api/apartments.js` read only from Neon. The production Neon branch has no schema, no roles and no data, and Vercel has no `DATABASE_URL`, so pushing this to `main` makes the production API return 500 and the app shows no calendar. Do the "Production" item in `TODO.md` first (roles, migrations, data, `DATABASE_URL` in Vercel Production). Until then use `npm run dev:api` locally.
 
 ## Done
 
