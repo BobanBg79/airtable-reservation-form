@@ -36,7 +36,7 @@ Done when all of these are true; then switch Vercel's `DATABASE_URL` to the `pro
 
 ## Checklist
 
-- [ ] `DATABASE_URL` (the `delta_app` pooled string of `dev`) added to Vercel Production.
-- [ ] The Postgres version of the API is pushed to `main` and deployed (the owner approves the push).
-- [ ] The production API answers with the dev data (`/api/calendar?month=YYYY-MM`).
-- [ ] `AIRTABLE_TOKEN` and `AIRTABLE_BASE` removed from Vercel.
+- [x] `DATABASE_URL` (the `delta_app` pooled string of `dev`) added to Vercel Production (2026-11-07).
+- [x] The Postgres version of the API is pushed to `main` and deployed (`bb0a8fa`).
+- [x] The production API answers with the dev data: `/api/calendar?month=2026-11` returns 3 apartments and 10 reservations, `/api/apartments` returns 3 apartments, dates are not shifted, `/api/reserve` and helper files are 404.
+- [ ] `AIRTABLE_TOKEN` and `AIRTABLE_BASE` removed from Vercel, and the Airtable token revoked (owner).
