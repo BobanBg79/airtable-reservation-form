@@ -1,11 +1,9 @@
-import { createApiClient, type CalendarData, type YearMonth } from '@delta/core';
+import { type CalendarData, type YearMonth } from '@delta/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { API_BASE_URL } from '../config';
+import { api } from '../api';
 
 const AUTO_REFRESH_MS = 60_000;
-
-const api = createApiClient({ baseUrl: API_BASE_URL });
 
 interface State {
   data?: CalendarData;

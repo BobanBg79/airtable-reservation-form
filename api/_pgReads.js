@@ -10,6 +10,37 @@ export async function loadApartments(sql) {
 }
 
 /**
+ * Active apartments with every detail, ordered by name (the apartments list and the detail screen).
+ * Field names are camelCase and ids are strings, which is what packages/core parses.
+ * NOTE: includes the owner's name and phone and the rent; the API has no auth yet (KNOWN_ISSUES 17).
+ */
+export async function loadApartmentDetails(sql) {
+  const rows = await sql.query(
+    `select id::text as id, name, address, apartment_number, floor, building_name, area_m2,
+            owner_name, owner_phone, monthly_rent_eur, has_bathtub, has_terrace, has_dishwasher, parking_spot
+       from apartments
+      where is_active
+      order by name`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    address: r.address,
+    apartmentNumber: r.apartment_number,
+    floor: r.floor,
+    buildingName: r.building_name,
+    areaM2: r.area_m2,
+    ownerName: r.owner_name,
+    ownerPhone: r.owner_phone,
+    monthlyRentEur: r.monthly_rent_eur,
+    hasBathtub: r.has_bathtub,
+    hasTerrace: r.has_terrace,
+    hasDishwasher: r.has_dishwasher,
+    parkingSpot: r.parking_spot ?? null,
+  }));
+}
+
+/**
  * Apartments plus the reservations that block dates within [start, end), both YYYY-MM-DD.
  * A reservation belongs to the month when checkIn < end and checkOut > start (same rule as everywhere).
  * Dates are selected as text on purpose: the driver would turn a `date` into a JS Date and shift it.

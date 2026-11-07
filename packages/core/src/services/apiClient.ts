@@ -1,5 +1,5 @@
 import { isValidISODate, isValidYearMonth } from '../models/date';
-import type { Apartment, ISODate, Reservation, YearMonth } from '../models/types';
+import type { Apartment, ApartmentDetails, ISODate, Reservation, YearMonth } from '../models/types';
 
 /** Minimal fetch signature, so core doesn't depend on DOM or Node typings. */
 export type FetchLike = (
@@ -31,6 +31,8 @@ export interface CalendarData {
 
 export interface ApiClient {
   getCalendar(month: YearMonth): Promise<CalendarData>;
+  /** All active apartments with their details, ordered by name. */
+  getApartments(): Promise<ApartmentDetails[]>;
 }
 
 // ---- Wire format of GET /api/calendar ----
@@ -73,6 +75,45 @@ export function mapCalendarResponse(dto: CalendarResponseDto, requested: YearMon
   };
 }
 
+// ---- Wire format of GET /api/apartments ----
+
+const isString = (v: unknown): v is string => typeof v === 'string';
+const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isBoolean = (v: unknown): v is boolean => typeof v === 'boolean';
+
+/** Maps the response, skipping any item that is missing a field or has one of the wrong type. */
+export function mapApartmentsResponse(dto: unknown): ApartmentDetails[] {
+  if (!Array.isArray(dto)) return [];
+  const out: ApartmentDetails[] = [];
+  for (const a of dto as Record<string, unknown>[]) {
+    if (
+      a !== null && typeof a === 'object' &&
+      isString(a.id) && isString(a.name) && isString(a.address) && isString(a.apartmentNumber) &&
+      isNumber(a.floor) && isString(a.buildingName) && isNumber(a.areaM2) && isString(a.ownerName) &&
+      isString(a.ownerPhone) && isNumber(a.monthlyRentEur) && isBoolean(a.hasBathtub) &&
+      isBoolean(a.hasTerrace) && isBoolean(a.hasDishwasher)
+    ) {
+      out.push({
+        id: a.id,
+        name: a.name,
+        address: a.address,
+        apartmentNumber: a.apartmentNumber,
+        floor: a.floor,
+        buildingName: a.buildingName,
+        areaM2: a.areaM2,
+        ownerName: a.ownerName,
+        ownerPhone: a.ownerPhone,
+        monthlyRentEur: a.monthlyRentEur,
+        hasBathtub: a.hasBathtub,
+        hasTerrace: a.hasTerrace,
+        hasDishwasher: a.hasDishwasher,
+        parkingSpot: isString(a.parkingSpot) && a.parkingSpot !== '' ? a.parkingSpot : null,
+      });
+    }
+  }
+  return out;
+}
+
 async function readError(res: { status: number; json(): Promise<unknown> }, fallback: string): Promise<string> {
   try {
     const body = (await res.json()) as { error?: unknown };
@@ -87,18 +128,25 @@ export function createApiClient({ baseUrl, fetch: fetchImpl }: ApiClientOptions)
   const base = baseUrl.replace(/\/+$/, '');
   const doFetch: FetchLike = fetchImpl ?? ((url, init) => (globalThis as unknown as { fetch: FetchLike }).fetch(url, init));
 
+  /** GET a JSON endpoint. Network failures and error responses become an ApiError with a readable message. */
+  async function getJson(path: string, fallbackError: string): Promise<unknown> {
+    let res: Awaited<ReturnType<FetchLike>>;
+    try {
+      res = await doFetch(`${base}${path}`, { headers: { Accept: 'application/json' } });
+    } catch {
+      throw new ApiError('No connection. Check your internet and try again.', 0);
+    }
+    if (!res.ok) throw new ApiError(await readError(res, fallbackError), res.status);
+    return res.json();
+  }
+
   return {
     async getCalendar(month) {
-      let res: Awaited<ReturnType<FetchLike>>;
-      try {
-        res = await doFetch(`${base}/api/calendar?month=${encodeURIComponent(month)}`, {
-          headers: { Accept: 'application/json' },
-        });
-      } catch {
-        throw new ApiError('No connection. Check your internet and try again.', 0);
-      }
-      if (!res.ok) throw new ApiError(await readError(res, 'Could not load calendar.'), res.status);
-      return mapCalendarResponse((await res.json()) as CalendarResponseDto, month);
+      const dto = await getJson(`/api/calendar?month=${encodeURIComponent(month)}`, 'Could not load calendar.');
+      return mapCalendarResponse(dto as CalendarResponseDto, month);
+    },
+    async getApartments() {
+      return mapApartmentsResponse(await getJson('/api/apartments', 'Could not load apartments.'));
     },
   };
 }

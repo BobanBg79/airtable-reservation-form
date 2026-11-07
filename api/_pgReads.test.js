@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadApartments, loadCalendar } from './_pgReads.js';
+import { loadApartmentDetails, loadApartments, loadCalendar } from './_pgReads.js';
 import { PG_FREES_DATES } from './_status.js';
 
 // A fake SQL client: records every query and answers from a queue keyed by a fragment of the SQL.
@@ -67,4 +67,35 @@ test('loadCalendar passes values as parameters and filters like the business rul
   // Dates come back as text, so the driver cannot turn them into shifted JS Dates.
   assert.match(q.text, /r\.check_in_date::text as check_in/);
   assert.match(q.text, /r\.check_out_date::text as check_out/);
+});
+
+test('loadApartmentDetails maps every column to the camelCase wire format', async () => {
+  const sql = fakeSql({
+    'from apartments': [
+      {
+        id: '4', name: 'Egzotik', address: 'Test Street 4, Belgrade', apartment_number: '4C', floor: 1,
+        building_name: 'Lala', area_m2: 41, owner_name: 'Test Owner Four', owner_phone: '+38160000004',
+        monthly_rent_eur: 380, has_bathtub: false, has_terrace: false, has_dishwasher: true, parking_spot: null,
+      },
+      {
+        id: '5', name: 'Eli', address: 'Test Street 5, Belgrade', apartment_number: '5', floor: 2,
+        building_name: 'Mimoza', area_m2: 33, owner_name: 'Test Owner Five', owner_phone: '+38160000005',
+        monthly_rent_eur: 300, has_bathtub: true, has_terrace: false, has_dishwasher: false, parking_spot: 'P5',
+      },
+    ],
+  });
+  const list = await loadApartmentDetails(sql);
+  assert.deepEqual(list[0], {
+    id: '4', name: 'Egzotik', address: 'Test Street 4, Belgrade', apartmentNumber: '4C', floor: 1,
+    buildingName: 'Lala', areaM2: 41, ownerName: 'Test Owner Four', ownerPhone: '+38160000004',
+    monthlyRentEur: 380, hasBathtub: false, hasTerrace: false, hasDishwasher: true, parkingSpot: null,
+  });
+  assert.equal(list[1].parkingSpot, 'P5');
+  assert.equal(list.length, 2);
+
+  const text = sql.calls[0].text;
+  assert.match(text, /id::text as id/);
+  assert.match(text, /where is_active/);
+  assert.match(text, /order by name/);
+  assert.deepEqual(sql.calls[0].params ?? [], []);
 });

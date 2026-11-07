@@ -19,7 +19,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [x] **7. Truncated apartment names.** Fixed: the name column is 120 px wide (`NAME_W` in `MonthGrid.tsx`, shared by the header and the body) and a longer name shrinks to at most 80% instead of being cut. "Margareta", the longest of the real names, shows in full (checked on the phone).
 - [ ] **8. Small touch targets.** Month arrows are 32 px in landscape (recommended minimum 48 px).
 - [ ] **9. Portrait toolbar.** "November 2026" wraps onto two lines. (In Expo Go the dev gear overlaps "Today"; dev-only, will not exist in a real build.)
-- [ ] **10. Temporary data hook.** `useCalendarData` is a stand-in for `CalendarVM` (task 2 in `CLAUDE.md`); it should hold no logic.
+- [ ] **10. Temporary data hook.** `useCalendarData` is a stand-in for `CalendarVM` (task 2 in `CLAUDE.md`); it should hold no logic. `state/ApartmentsProvider.tsx` is a temporary stand-in for a ViewModel too (it loads the apartments for the whole app).
 - [ ] **11. Client-generated reservation ids.** `packages/core/src/services/apiClient.ts` builds ids as `apartmentId:checkIn:checkOut:index` because `api/calendar.js` does not return the reservation id yet (Postgres has it: `reservations.id`). Fine for display; needed for edit/cancel, so return the real id from the API and use it in `mapCalendarResponse` first.
 
 ## Repo and environment
@@ -30,6 +30,8 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [ ] **14. `adb` not on PATH in the current VS Code session.** The folder is already in the user PATH; restarting VS Code picks it up. Until then use the full WinGet path to `adb.exe`.
 - [ ] **15. `npm audit`: 5 moderate vulnerabilities** (2026-11-06), all in the Expo dev toolchain, none in code we ship: `expo`, `@expo/cli`, `@expo/fingerprint` (all via `glob`/`minimatch`), `glob` (AbortSignal cancellation bypass allows post-timeout filesystem traversal) and `minimatch` (denial of service via globparts amplification). The only suggested fix is `expo@53.0.11`, a downgrade from SDK 58; do NOT run `npm audit fix --force`. Revisit with the next Expo SDK upgrade.
 - [ ] **16. Production reads the Neon `dev` branch (ADR 0005).** `api/calendar.js` and `api/apartments.js` read only from Neon, and for now Vercel Production is pointed at the `dev` branch, so the deployed app shows fake data and no real data may be entered. Order matters: add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500. Ends with the "Production" item in `TODO.md` (production branch with its own roles and passwords, schema, real data, safe migrations, backup).
+- [ ] **17. The API is open and now publishes owner contact data.** `GET /api/apartments` returns every apartment's owner name, owner phone and rent to anyone who knows the URL (there is no auth yet). Harmless with the fake dev data, but real data must not go in until there is auth, or those fields are limited to editors (`CLAUDE.md`, "Auth").
+- [ ] **18. Landscape calendar loses about a row to the bottom bar.** With the bar visible, 7 of 9 apartment rows fit without scrolling on the test phone. Options: a slimmer bar, or hide it while scrolling the grid.
 
 ## Done
 

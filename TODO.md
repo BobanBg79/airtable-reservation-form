@@ -91,6 +91,8 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 ## Backlog
 
+- Apartment details: edit (needs auth first), and the reservations of an apartment on its detail screen.
+- Home: show the signed-in user once there is authentication.
 - Write endpoints on Postgres: create, edit and cancel a reservation (replacing the removed `api/reserve.js`), with auth, input validation (dates, phone, amount) and error-code mapping (see `docs/database-migrations.md`). The calendar should also return the reservation `id` and `status`.
 - Migrate the real Airtable data (15 apartments, existing reservations) into Postgres, one time. The Airtable base stays untouched as the fallback until a backup has been restored successfully.
 - **Production branch (must be done before any real data is entered):** roles on the `production` branch with new passwords, the schema applied there, the data migrated, a safe way to run migrations for production (ADR 0004, open question 1), and `DATABASE_URL` in Vercel switched from the `dev` branch to production. Until then Vercel Production uses the `dev` branch (ADR 0005, `KNOWN_ISSUES.md` 16).
@@ -102,4 +104,5 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 - Drizzle migrations and the initial schema on the Neon `dev` branch (`fd79903`, `c994e01`).
 - Dev seed: nine apartments (real names, made-up details) and 25 fake reservations around 2026-11-07 (`npm run db:seed`).
+- Navigation: bottom tabs (Home, Calendar, Apartments) and read-only apartment details, reached from the list and by tapping an apartment name in the calendar; `/api/apartments` returns the full details.
 - The API reads only from Neon (`api/calendar.js`, `api/apartments.js`); all Airtable code and the old `api/reserve.js` are removed. Local API for the app: `npm run dev:api`.

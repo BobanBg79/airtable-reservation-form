@@ -64,6 +64,14 @@ Rules:
 - Views contain no business logic: they render VM state and call VM commands.
 - Use npm workspaces.
 
+## Mobile app structure (`apps/mobile/src`, Expo Router)
+- `app/_layout.tsx`: providers (Paper theme, `ApartmentsProvider`) and the root `Stack`.
+- `app/(tabs)/_layout.tsx`: bottom navigation. In SDK 58 `Tabs` from `expo-router` is deprecated; use the headless `expo-router/ui` (`Tabs`, `TabSlot`, `TabList`, `TabTrigger asChild`). The bar is our own Material 3 style (`components/TabBarItem.tsx`), shorter with icon and label side by side in landscape. The triggers must be direct children of `<TabList>`.
+- Tabs: `(tabs)/index.tsx` Home (greeting for now; the signed-in user comes with auth), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen).
+- `app/apartment/[id].tsx`: read-only apartment details, pushed on the root stack so Back returns to the list or to the calendar. Opened from a row in the list and by tapping an apartment name in the calendar (`MonthGrid` `onPressApartment`).
+- Data: `src/api.ts` is the one API client; `state/ApartmentsProvider.tsx` loads the apartments once for the whole app (TEMPORARY, to become a ViewModel in `packages/core`, like `hooks/useCalendarData.ts`). Pure logic such as `formatFloor`, `apartmentAmenities`, `formatEur` and the `/api/apartments` parsing lives in `packages/core` with tests.
+- Every apartment keeps one colour everywhere (`apartmentHues` in `core`): calendar bars, list avatars and the detail hero.
+
 ## Design
 - Material Design 3. Mobile: React Native Paper. Web: MUI.
 - Modern, calm, premium hospitality feel. Generous spacing, rounded cards, clear typography, one strong accent colour, light + dark mode.

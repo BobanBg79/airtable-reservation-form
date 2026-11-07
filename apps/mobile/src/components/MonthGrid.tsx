@@ -26,9 +26,11 @@ interface Props {
   refreshing: boolean;
   onRefresh: () => void;
   onPressBooking: (r: Reservation) => void;
+  /** Tap on an apartment name in the frozen column. */
+  onPressApartment: (apartmentId: string) => void;
 }
 
-export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }: Props) {
+export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking, onPressApartment }: Props) {
   const theme = useTheme<AppTheme>();
   const days = useMemo(() => monthDays(data.month), [data.month]);
   const bars = useMemo(() => layoutMonth(data.month, data.reservations), [data]);
@@ -86,13 +88,20 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking }
       <View style={{ flexDirection: 'row' }}>
         <View style={[s.nameColumn, { width: NAME_W }]}>
           {data.apartments.map((a) => (
-            <View key={a.id} style={s.nameCell}>
+            <Pressable
+              key={a.id}
+              onPress={() => onPressApartment(a.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`${a.name}, open apartment details`}
+              android_ripple={{ color: `${theme.colors.primary}22` }}
+              style={s.nameCell}
+            >
               <View style={[s.dot, { backgroundColor: barColors(hues.get(a.name) ?? 0, theme.dark).dot }]} />
               {/* A longer name shrinks a little (down to 80%) instead of being cut to "Margar…". */}
               <Text variant="titleSmall" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ flexShrink: 1 }}>
                 {a.name}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
 

@@ -32,3 +32,16 @@ export function formatNights(checkIn: ISODate, checkOut: ISODate): string {
   const n = nightsBetween(checkIn, checkOut);
   return `${n} ${n === 1 ? 'night' : 'nights'}`;
 }
+
+/** "38 m²" */
+export function formatArea(m2: number): string {
+  return `${m2} m²`;
+}
+
+/** "€350", "€1,250", "€1,250.50" (whole amounts have no decimals). */
+export function formatEur(amount: number): string {
+  const fixed = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const [whole, decimals] = fixed.split('.') as [string, string | undefined];
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `€${grouped}${decimals ? `.${decimals}` : ''}`;
+}

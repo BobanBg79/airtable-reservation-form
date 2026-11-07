@@ -3,6 +3,7 @@ export * from './models/date';
 export * from './models/overlap';
 export * from './models/validation';
 export * from './models/format';
+export * from './models/apartment';
 export * from './models/calendarLayout';
 export * from './models/colors';
 export * from './services/apiClient';

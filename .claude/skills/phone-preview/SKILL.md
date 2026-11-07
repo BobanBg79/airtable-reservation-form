@@ -19,7 +19,7 @@ By default the app talks to the **production API** (`https://airtable-reservatio
 1. **Check the phone:** `adb devices` must list a serial with state `device`.
    - `unauthorized`: the owner accepts the prompt on the phone.
    - Empty list or a hang: `Get-Process adb | Stop-Process -Force`, then `adb start-server`, then check again (check the cable and USB debugging if it stays empty).
-2. **Forward Metro's port:** `adb reverse tcp:8081 tcp:8081`. Check with `adb reverse --list`. Repeat after every reconnect of the cable.
+2. **Forward Metro's port:** `adb reverse tcp:8081 tcp:8081`. Repeat after every reconnect of the cable. Avoid `adb reverse --list`: it can hang the adb server (restart it as in step 1).
 3. **Start Metro in the background** from `apps/mobile`: `npx expo start --port 8081 -c` (`-c` clears the cache, so env and config changes apply). Wait until `http://127.0.0.1:8081/status` answers `packager-status:running`; a cold start takes about a minute.
    - If port 8081 is already taken, find the owner with `Get-NetTCPConnection -LocalPort 8081 -State Listen`. Ask before stopping something the owner started.
 4. **Open the app in Expo Go:** wake the phone with `adb shell input keyevent KEYCODE_WAKEUP`, then
@@ -33,6 +33,7 @@ By default the app talks to the **production API** (`https://airtable-reservatio
 
 - Tap `adb shell input tap X Y`, swipe `adb shell input swipe x1 y1 x2 y2 <ms>`, back `adb shell input keyevent KEYCODE_BACK`. Coordinates are in pixels of the screenshot (for example 2340x1080 in landscape).
 - Code changes show up through Fast Refresh. If the screen looks stale (for example a scroll position left from an earlier session), force-stop and reopen: `adb shell am force-stop host.exp.exponent`, then step 4.
+- To test landscape: `adb shell settings put system accelerometer_rotation 0` then `adb shell settings put system user_rotation 1` (0 is portrait). Afterwards restore the phone's automatic rotation with `adb shell settings put system accelerometer_rotation 1`. Relaunching Expo Go can reset the orientation; set it again.
 - The round gear at the top right is Expo Go's developer menu button, not part of the app.
 - When finished, stop the Metro background task and check that port 8081 is free.
 

@@ -7,13 +7,14 @@ import {
   todayInBelgrade,
   type Reservation,
 } from '@delta/core';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ActivityIndicator, Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MonthGrid } from '../components/MonthGrid';
-import { useCalendarData } from '../hooks/useCalendarData';
-import type { AppTheme } from '../theme';
+import { MonthGrid } from '../../components/MonthGrid';
+import { useCalendarData } from '../../hooks/useCalendarData';
+import type { AppTheme } from '../../theme';
 
 export default function CalendarScreen() {
   const theme = useTheme<AppTheme>();
@@ -67,7 +68,7 @@ export default function CalendarScreen() {
 
       <View style={[s.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
         {data ? (
-          <MonthGrid data={data} today={today} refreshing={refreshing} onRefresh={refresh} onPressBooking={setSelected} />
+          <MonthGrid data={data} today={today} refreshing={refreshing} onRefresh={refresh} onPressBooking={setSelected} onPressApartment={(id) => router.push(`/apartment/${id}`)} />
         ) : error ? (
           <View style={s.center}>
             <Text variant="bodyLarge" style={{ textAlign: 'center', marginBottom: 12 }}>
