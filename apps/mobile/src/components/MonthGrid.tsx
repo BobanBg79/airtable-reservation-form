@@ -8,7 +8,7 @@ import {
   type ISODate,
   type Reservation,
 } from '@delta/core';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { barColors, type AppTheme } from '../theme';
@@ -42,7 +42,7 @@ export function MonthGrid({ data, today, refreshing, onRefresh, onPressBooking, 
   // Initial offset is set on BOTH sides (contentOffset + scrollX) because a programmatic
   // scrollTo does not always emit onScroll, which left the header out of sync with the body.
   const initialX = todayIndex > 1 ? (todayIndex - 1) * DAY_W : 0;
-  const scrollX = useRef(new Animated.Value(initialX)).current;
+  const [scrollX] = useState(() => new Animated.Value(initialX));
   const hScroll = useRef<{ scrollTo(o: { x: number; animated: boolean }): void } | null>(null);
   useEffect(() => {
     scrollX.setValue(initialX);

@@ -31,6 +31,7 @@ export function useUsers() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TEMPORARY load-on-mount; replaced by a ViewModel (TODO.md)
     void load('initial');
   }, [load]);
 

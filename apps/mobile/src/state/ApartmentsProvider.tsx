@@ -49,6 +49,7 @@ export function ApartmentsProvider({ children }: { children: ReactNode }) {
   // Load while signed in with the permission; forget everything on sign-out (the next user may see less).
   useEffect(() => {
     if (allowed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TEMPORARY load-on-mount; replaced by a ViewModel (TODO.md)
       void load('initial');
     } else {
       requestId.current++;

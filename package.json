@@ -18,7 +18,8 @@
     "db:seed": "node scripts/seed-dev.mjs",
     "db:create-admin": "node scripts/create-admin.mjs",
     "dev:api": "node scripts/dev-api.mjs",
-    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p db && tsc -p ."
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p db && tsc -p .",
+    "lint": "eslint . && npm run lint --workspaces --if-present"
   },
   "dependencies": {
     "@neon/config": "^1.12.0",
@@ -28,6 +29,10 @@
     "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.11"
+    "@eslint/js": "^9.39.5",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0",
+    "typescript-eslint": "^8.72.1"
   }
 }

@@ -11,7 +11,7 @@ export const ENV_LOCAL = path.join(ROOT, '.env.local');
 /** Parse the text of an env file. Strips a UTF-8 BOM (PowerShell 5.1 adds one and it hides the first variable). */
 export function parseEnv(text) {
   const env = {};
-  for (const line of text.replace(/^﻿/, '').split(/\r?\n/)) {
+  for (const line of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
     const m = line.match(/^(\w+)=(.*)$/);
     if (m) env[m[1]] = m[2].replace(/^"|"$/g, '');
   }
