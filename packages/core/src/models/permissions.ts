@@ -49,3 +49,19 @@ export const INITIAL_ROLE_PERMISSIONS: Record<RoleName, readonly PermissionName[
 export function can(granted: readonly string[] | null | undefined, permission: PermissionName): boolean {
   return !!granted && granted.includes(permission);
 }
+
+/**
+ * The permission each screen needs. The tab bar, the Home shortcuts and the screens themselves read this, so
+ * a hidden screen reached by a stale route or a link shows "No access". This is for the user experience only:
+ * the server guard is what protects the data.
+ */
+export const SCREEN_PERMISSIONS = {
+  calendar: 'can_view_reservation',
+  apartments: 'can_view_apartment',
+  users: 'can_view_user',
+} as const satisfies Record<string, PermissionName>;
+export type ScreenName = keyof typeof SCREEN_PERMISSIONS;
+
+export function canOpenScreen(granted: readonly string[] | null | undefined, screen: ScreenName): boolean {
+  return can(granted, SCREEN_PERMISSIONS[screen]);
+}

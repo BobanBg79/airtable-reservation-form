@@ -13,10 +13,18 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ActivityIndicator, Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MonthGrid } from '../../components/MonthGrid';
+import { NoAccess } from '../../components/NoAccess';
 import { useCalendarData } from '../../hooks/useCalendarData';
+import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
 export default function CalendarScreen() {
+  const { canOpen } = useAuth();
+  if (!canOpen('calendar')) return <NoAccess what="the calendar" />;
+  return <CalendarContent canOpenApartments={canOpen('apartments')} />;
+}
+
+function CalendarContent({ canOpenApartments }: { canOpenApartments: boolean }) {
   const theme = useTheme<AppTheme>();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
@@ -68,7 +76,7 @@ export default function CalendarScreen() {
 
       <View style={[s.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
         {data ? (
-          <MonthGrid data={data} today={today} refreshing={refreshing} onRefresh={refresh} onPressBooking={setSelected} onPressApartment={(id) => router.push(`/apartment/${id}`)} />
+          <MonthGrid data={data} today={today} refreshing={refreshing} onRefresh={refresh} onPressBooking={setSelected} onPressApartment={(id) => (canOpenApartments ? router.push(`/apartment/${id}`) : undefined)} />
         ) : error ? (
           <View style={s.center}>
             <Text variant="bodyLarge" style={{ textAlign: 'center', marginBottom: 12 }}>

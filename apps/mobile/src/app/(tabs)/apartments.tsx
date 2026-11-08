@@ -3,12 +3,19 @@ import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from 
 import { ActivityIndicator, Button, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApartmentCard } from '../../components/ApartmentCard';
+import { NoAccess } from '../../components/NoAccess';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useApartments } from '../../state/ApartmentsProvider';
+import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
 // Apartments list: tap a row to open its details.
 export default function ApartmentsScreen() {
+  const { canOpen } = useAuth();
+  return canOpen('apartments') ? <ApartmentsContent /> : <NoAccess what="the apartments" />;
+}
+
+function ApartmentsContent() {
   const theme = useTheme<AppTheme>();
   const { apartments, loading, refreshing, error, reload, refresh, hueOf } = useApartments();
   const { width } = useWindowDimensions();

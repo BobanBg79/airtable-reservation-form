@@ -1,15 +1,18 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Icon, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Button, Icon, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApartments } from '../../state/ApartmentsProvider';
+import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
-// Home. Just a greeting for now; the signed-in user comes with authentication.
+// Home: greets the signed-in user, shortcuts to the screens they may open, and Sign out.
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
   const { apartments } = useApartments();
+  const { session, canOpen, signOut } = useAuth();
   const count = apartments?.length;
+  const firstName = session?.user.firstName;
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
@@ -26,7 +29,7 @@ export default function HomeScreen() {
               Delta Apartments
             </Text>
             <Text variant="displaySmall" style={{ color: theme.colors.onPrimaryContainer, fontWeight: '600' }}>
-              Hello
+              {firstName ? `Hello, ${firstName}` : 'Hello'}
             </Text>
             <Text variant="bodyLarge" style={{ color: theme.colors.onPrimaryContainer }}>
               Everything about your stays and apartments, in one place.
@@ -39,18 +42,46 @@ export default function HomeScreen() {
         </Text>
 
         <View style={s.cards}>
-          <ShortcutCard
-            icon="calendar-month"
-            title="Calendar"
-            subtitle="See every stay, apartment by apartment"
-            onPress={() => router.navigate('/calendar')}
-          />
-          <ShortcutCard
-            icon="office-building"
-            title="Apartments"
-            subtitle={count === undefined ? 'Details of each apartment' : `${count} ${count === 1 ? 'apartment' : 'apartments'}, with all their details`}
-            onPress={() => router.navigate('/apartments')}
-          />
+          {canOpen('calendar') ? (
+            <ShortcutCard
+              icon="calendar-month"
+              title="Calendar"
+              subtitle="See every stay, apartment by apartment"
+              onPress={() => router.navigate('/calendar')}
+            />
+          ) : null}
+          {canOpen('apartments') ? (
+            <ShortcutCard
+              icon="office-building"
+              title="Apartments"
+              subtitle={count === undefined ? 'Details of each apartment' : `${count} ${count === 1 ? 'apartment' : 'apartments'}, with all their details`}
+              onPress={() => router.navigate('/apartments')}
+            />
+          ) : null}
+          {canOpen('users') ? (
+            <ShortcutCard
+              icon="account-group"
+              title="Users"
+              subtitle="Who can sign in, and as what"
+              onPress={() => router.navigate('/users')}
+            />
+          ) : null}
+          {!canOpen('calendar') && !canOpen('apartments') && !canOpen('users') ? (
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
+              Your account has no screens yet. Ask an administrator to give you access.
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={s.account}>
+          {session ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Signed in as {session.user.email}
+            </Text>
+          ) : null}
+          <Button mode="outlined" icon="logout" onPress={() => void signOut()}>
+            Sign out
+          </Button>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -89,6 +120,7 @@ const s = StyleSheet.create({
   heroText: { flex: 1, gap: 4 },
   sectionTitle: { marginTop: 8, marginLeft: 4 },
   cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  account: { marginTop: 16, gap: 8, alignItems: 'flex-start' },
   card: { flexGrow: 1, flexBasis: 300, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   cardTouch: { borderRadius: 20 },
   cardInner: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },

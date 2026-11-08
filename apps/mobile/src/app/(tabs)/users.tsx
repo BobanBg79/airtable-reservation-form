@@ -1,14 +1,20 @@
 import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ActivityIndicator, Button, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NoAccess } from '../../components/NoAccess';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { UserCard } from '../../components/UserCard';
 import { useUsers } from '../../hooks/useUsers';
+import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
-// Users list. TEMPORARILY PUBLIC, like the endpoint (KNOWN_ISSUES 19): admin only after authentication.
-// Create and edit come later (TODO.md, subtask 5).
+// Users list. Needs can_view_user (admin only by default). Create and edit come later (TODO.md, subtask 5).
 export default function UsersScreen() {
+  const { canOpen } = useAuth();
+  return canOpen('users') ? <UsersContent /> : <NoAccess what="the users list" />;
+}
+
+function UsersContent() {
   const theme = useTheme<AppTheme>();
   const { users, loading, refreshing, error, reload, refresh } = useUsers();
   const { width } = useWindowDimensions();

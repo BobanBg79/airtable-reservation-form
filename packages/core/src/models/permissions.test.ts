@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { can, INITIAL_ROLE_PERMISSIONS, PERMISSIONS, ROLES } from './permissions';
+import { can, canOpenScreen, INITIAL_ROLE_PERMISSIONS, PERMISSIONS, ROLES, SCREEN_PERMISSIONS } from './permissions';
 
 describe('permissions list', () => {
   it('has 19 unique names in the can_<action>_<entity> form', () => {
@@ -54,5 +54,31 @@ describe('can', () => {
   it('is false without a list', () => {
     expect(can(null, 'can_view_user')).toBe(false);
     expect(can(undefined, 'can_view_user')).toBe(false);
+  });
+});
+
+describe('screen permissions', () => {
+  it('maps the three screens to their view permissions', () => {
+    expect(SCREEN_PERMISSIONS).toEqual({
+      calendar: 'can_view_reservation',
+      apartments: 'can_view_apartment',
+      users: 'can_view_user',
+    });
+    for (const p of Object.values(SCREEN_PERMISSIONS)) expect(PERMISSIONS).toContain(p);
+  });
+
+  it('shows each role the tabs its permissions allow', () => {
+    const open = (role: (typeof ROLES)[number]) =>
+      (['calendar', 'apartments', 'users'] as const).filter((s) => canOpenScreen(INITIAL_ROLE_PERMISSIONS[role], s));
+    expect(open('admin')).toEqual(['calendar', 'apartments', 'users']);
+    expect(open('business_owner')).toEqual(['calendar', 'apartments']);
+    expect(open('manager')).toEqual(['calendar', 'apartments']);
+    expect(open('cleaning_lady')).toEqual([]);
+    expect(open('handyman')).toEqual([]);
+  });
+
+  it('is closed for a missing permission list', () => {
+    expect(canOpenScreen(undefined, 'users')).toBe(false);
+    expect(canOpenScreen([], 'calendar')).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { apartmentHues, findApartment, type ApartmentDetails } from '@delta/core';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
+import { useAuth } from './AuthProvider';
 
 interface State {
   apartments?: ApartmentDetails[];
@@ -23,10 +24,12 @@ const ApartmentsContext = createContext<ApartmentsValue | null>(null);
 
 /**
  * Loads the apartments once for the whole app, so the list, the details and the calendar's
- * "tap a name" all read the same data.
+ * "tap a name" all read the same data. Only while signed in with can_view_apartment.
  * TEMPORARY: replaced by a ViewModel in packages/core, like useCalendarData.
  */
 export function ApartmentsProvider({ children }: { children: ReactNode }) {
+  const { status, canOpen } = useAuth();
+  const allowed = status === 'signedIn' && canOpen('apartments');
   const [state, setState] = useState<State>({ loading: true, refreshing: false });
   const requestId = useRef(0);
 
@@ -43,9 +46,15 @@ export function ApartmentsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Load while signed in with the permission; forget everything on sign-out (the next user may see less).
   useEffect(() => {
-    void load('initial');
-  }, [load]);
+    if (allowed) {
+      void load('initial');
+    } else {
+      requestId.current++;
+      setState({ loading: false, refreshing: false });
+    }
+  }, [allowed, load]);
 
   const value = useMemo<ApartmentsValue>(() => {
     const hues = apartmentHues((state.apartments ?? []).map((a) => a.name));

@@ -55,6 +55,30 @@ export interface UserSummary {
   lastLoginAt: string | null;
 }
 
+/** The signed-in user, as the server describes them after login and from /api/auth/me. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  /** Role name, e.g. "manager". Screens decide with `permissions`, never with the role name. */
+  role: string;
+}
+
+/** A signed-in session: who, what they may do, and when the session expires (it slides while in use). */
+export interface AuthSession {
+  user: AuthUser;
+  /** Permission names, e.g. "can_view_reservation". */
+  permissions: string[];
+  /** ISO timestamp. */
+  expiresAt: string;
+}
+
+/** What POST /api/auth/login returns: the session plus the token to send as `Authorization: Bearer`. */
+export interface LoginResult extends AuthSession {
+  token: string;
+}
+
 export interface Reservation {
   id: string;
   apartmentId: string;

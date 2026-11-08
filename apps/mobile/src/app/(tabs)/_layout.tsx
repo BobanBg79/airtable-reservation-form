@@ -3,12 +3,14 @@ import { View, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabBarItem } from '../../components/TabBarItem';
+import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
-// Bottom navigation: Home, Calendar, Apartments. Headless tabs (expo-router/ui) so the bar can look
+// Bottom navigation: Home always; Calendar, Apartments and Users only with their permission (SCREEN_PERMISSIONS in core). Headless tabs (expo-router/ui) so the bar can look
 // like the rest of the app (Material 3). The triggers must sit directly inside <TabList>.
 export default function TabsLayout() {
   const theme = useTheme<AppTheme>();
+  const { canOpen } = useAuth();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const compact = width > height; // landscape: shorter bar, icon and label side by side
@@ -30,15 +32,21 @@ export default function TabsLayout() {
         <TabTrigger name="index" href="/" asChild>
           <TabBarItem label="Home" icon="home-variant-outline" activeIcon="home-variant" compact={compact} />
         </TabTrigger>
-        <TabTrigger name="calendar" href="/calendar" asChild>
-          <TabBarItem label="Calendar" icon="calendar-month-outline" activeIcon="calendar-month" compact={compact} />
-        </TabTrigger>
-        <TabTrigger name="apartments" href="/apartments" asChild>
-          <TabBarItem label="Apartments" icon="office-building-outline" activeIcon="office-building" compact={compact} />
-        </TabTrigger>
-        <TabTrigger name="users" href="/users" asChild>
-          <TabBarItem label="Users" icon="account-group-outline" activeIcon="account-group" compact={compact} />
-        </TabTrigger>
+        {canOpen('calendar') ? (
+          <TabTrigger name="calendar" href="/calendar" asChild>
+            <TabBarItem label="Calendar" icon="calendar-month-outline" activeIcon="calendar-month" compact={compact} />
+          </TabTrigger>
+        ) : null}
+        {canOpen('apartments') ? (
+          <TabTrigger name="apartments" href="/apartments" asChild>
+            <TabBarItem label="Apartments" icon="office-building-outline" activeIcon="office-building" compact={compact} />
+          </TabTrigger>
+        ) : null}
+        {canOpen('users') ? (
+          <TabTrigger name="users" href="/users" asChild>
+            <TabBarItem label="Users" icon="account-group-outline" activeIcon="account-group" compact={compact} />
+          </TabTrigger>
+        ) : null}
       </TabList>
     </Tabs>
   );

@@ -4,11 +4,18 @@ import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, IconButton, Surface, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AmenityChip, InfoRow, Section, StatTile } from '../../components/DetailParts';
+import { NoAccess } from '../../components/NoAccess';
 import { useApartments } from '../../state/ApartmentsProvider';
+import { useAuth } from '../../state/AuthProvider';
 import { barColors, type AppTheme } from '../../theme';
 
 // Apartment details, read-only. Reached from the apartments list and by tapping a name in the calendar.
 export default function ApartmentDetailsScreen() {
+  const { canOpen } = useAuth();
+  return canOpen('apartments') ? <ApartmentDetailsContent /> : <NoAccess what="apartment details" />;
+}
+
+function ApartmentDetailsContent() {
   const theme = useTheme<AppTheme>();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { byId, hueOf, loading, error, reload } = useApartments();

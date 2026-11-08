@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { toYearMonth } from '../models/date';
-import { ApiError, createApiClient, mapApartmentsResponse, mapUsersResponse, type FetchLike } from './apiClient';
+import { ApiError, createApiClient, mapApartmentsResponse, mapSessionResponse, mapUsersResponse, type FetchLike } from './apiClient';
 
 const NOV = toYearMonth('2026-11');
 
@@ -209,5 +209,117 @@ describe('createApiClient.getUsers / mapUsersResponse', () => {
     await expect(createApiClient({ baseUrl: '', fetch: failing }).getUsers()).rejects.toMatchObject({
       name: 'ApiError', status: 500, message: 'Could not load users.',
     });
+  });
+});
+
+// ---- authentication ----
+
+const sessionDto = {
+  user: { id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', role: 'admin' },
+  permissions: ['can_view_user', 'can_view_apartment'],
+  expiresAt: '2026-12-08T10:00:00.000Z',
+};
+
+describe('createApiClient authentication', () => {
+  it('sends the token as a Bearer header on every call, and none when there is no token', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, []));
+    let token: string | null = 'abc123';
+    const api = createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => token });
+
+    await api.getUsers();
+    expect(fetch.mock.calls[0]![1]!.headers).toMatchObject({ Authorization: 'Bearer abc123' });
+
+    token = null;
+    await api.getApartments();
+    expect(fetch.mock.calls[1]![1]!.headers).not.toHaveProperty('Authorization');
+  });
+
+  it('login posts the credentials as JSON WITHOUT a token and returns the token with the session', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, { token: 'tok-1', ...sessionDto }));
+    const api = createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'stale-token' });
+    // Even if a stale token is lying around, login never sends it.
+    const result = await api.login('owner@example.com', 'secret-pass-123');
+
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://example.com/api/auth/login');
+    expect(init!.method).toBe('POST');
+    expect(init!.headers).toMatchObject({ 'Content-Type': 'application/json' });
+    expect(init!.headers).not.toHaveProperty('Authorization');
+    expect(JSON.parse(init!.body!)).toEqual({ email: 'owner@example.com', password: 'secret-pass-123' });
+    expect(result).toEqual({ token: 'tok-1', ...sessionDto });
+  });
+
+  it('a failed login rejects with the server message and does NOT sign the app out (no token was sent)', async () => {
+    const onUnauthorized = vi.fn();
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(401, { error: 'Invalid email or password' }));
+    const api = createApiClient({ baseUrl: '', fetch, getToken: () => 'stale-token', onUnauthorized });
+    await expect(api.login('a@b.co', 'x')).rejects.toMatchObject({ status: 401, message: 'Invalid email or password' });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('login surfaces the 429 message', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(429, { error: 'Too many attempts. Try again in a few minutes.' }));
+    await expect(createApiClient({ baseUrl: '', fetch }).login('a@b.co', 'x')).rejects.toMatchObject({
+      status: 429,
+      message: 'Too many attempts. Try again in a few minutes.',
+    });
+  });
+
+  it('a 401 on a call that sent a token tells the app once (the session ended), and still rejects', async () => {
+    const onUnauthorized = vi.fn();
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(401, { error: 'Not signed in.' }));
+    const api = createApiClient({ baseUrl: '', fetch, getToken: () => 'abc', onUnauthorized });
+    await expect(api.getCalendar(NOV)).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 401 without a token does not call onUnauthorized (nothing to sign out of)', async () => {
+    const onUnauthorized = vi.fn();
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(401, { error: 'Not signed in.' }));
+    await expect(createApiClient({ baseUrl: '', fetch, onUnauthorized }).getUsers()).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('a 403 is an ApiError with the server message and does not sign out', async () => {
+    const onUnauthorized = vi.fn();
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(403, { error: 'You do not have permission to do this.' }));
+    const api = createApiClient({ baseUrl: '', fetch, getToken: () => 'abc', onUnauthorized });
+    await expect(api.getUsers()).rejects.toMatchObject({ status: 403, message: 'You do not have permission to do this.' });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('getMe maps the session; logout posts and resolves', async () => {
+    const fetch = vi.fn<FetchLike>(async (url) => jsonResponse(200, url.endsWith('/logout') ? { ok: true } : sessionDto));
+    const api = createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'abc' });
+    expect(await api.getMe()).toEqual(sessionDto);
+    await expect(api.logout()).resolves.toBeUndefined();
+    expect(fetch.mock.calls[1]![0]).toBe('https://example.com/api/auth/logout');
+    expect(fetch.mock.calls[1]![1]!.method).toBe('POST');
+  });
+
+  it('being offline is an ApiError with status 0 (the app keeps the token and offers to retry)', async () => {
+    const offline = vi.fn<FetchLike>(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    const err = await createApiClient({ baseUrl: '', fetch: offline, getToken: () => 'abc' }).getMe().catch((e: unknown) => e);
+    expect((err as ApiError).status).toBe(0);
+  });
+
+  it('login without a token in the answer is rejected', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, sessionDto));
+    await expect(createApiClient({ baseUrl: '', fetch }).login('a@b.co', 'x')).rejects.toMatchObject({ status: 0 });
+  });
+});
+
+describe('mapSessionResponse', () => {
+  it('keeps only known fields and string permissions', () => {
+    const s = mapSessionResponse({ ...sessionDto, permissions: ['can_view_user', 5, null], token: 'x', extra: 1 });
+    expect(s).toEqual({ ...sessionDto, permissions: ['can_view_user'] });
+  });
+
+  it('throws for anything that is not a session, so a bad answer never looks signed in', () => {
+    for (const bad of [null, 'x', {}, { user: null }, { ...sessionDto, user: { ...sessionDto.user, id: 5 } }, { ...sessionDto, permissions: 'all' }, { ...sessionDto, expiresAt: 1 }]) {
+      expect(() => mapSessionResponse(bad)).toThrow(ApiError);
+    }
   });
 });
