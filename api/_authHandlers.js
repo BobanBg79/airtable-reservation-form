@@ -2,9 +2,7 @@
 // adapters). Kept apart so the handlers can be tested without a database connection.
 import { performLogin } from './_login.js';
 import { getClientIp } from './_loginLimits.js';
-import { bearerToken, resolveSession, revokeSession, sessionPayload } from './_sessions.js';
-
-const UNAUTHORIZED = { error: 'Not signed in.' };
+import { revokeSession, sessionPayload } from './_sessions.js';
 
 function allow(req, res, method) {
   if (req.method === method) return true;
@@ -47,27 +45,19 @@ export async function handleLogin(req, res, sql) {
   }
 }
 
-/** GET /api/auth/me: the signed-in user with the current permissions (refreshes the session expiry). */
-export async function handleMe(req, res, sql) {
+/** GET /api/auth/me: the signed-in user with the current permissions (the guard already refreshed the expiry). */
+export async function handleMe(req, res, { auth }) {
   if (!allow(req, res, 'GET')) return;
-  try {
-    const session = await resolveSession(sql, bearerToken(req));
-    res.setHeader('Cache-Control', 'no-store');
-    if (!session) return void res.status(401).json(UNAUTHORIZED);
-    res.status(200).json(sessionPayload(session));
-  } catch (e) {
-    fail(res, 'me', e);
-  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json(sessionPayload(auth));
 }
 
 /** POST /api/auth/logout: ends the current session (is_active = false, never a delete). */
-export async function handleLogout(req, res, sql) {
+export async function handleLogout(req, res, { sql, auth }) {
   if (!allow(req, res, 'POST')) return;
   try {
-    const session = await resolveSession(sql, bearerToken(req));
+    await revokeSession(sql, auth.sessionId, auth.user.id);
     res.setHeader('Cache-Control', 'no-store');
-    if (!session) return void res.status(401).json(UNAUTHORIZED);
-    await revokeSession(sql, session.sessionId, session.user.id);
     res.status(200).json({ ok: true });
   } catch (e) {
     fail(res, 'logout', e);

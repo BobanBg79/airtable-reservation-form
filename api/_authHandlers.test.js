@@ -2,19 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { handleLogin, handleLogout, handleMe } from './_authHandlers.js';
 import { fakeRes, fakeSql } from './_fakeSql.js';
-import { generateToken } from './_sessions.js';
-
-const sessionRow = {
-  session_id: '11',
-  expires_at: new Date('2026-12-08T10:00:00Z'),
-  user_id: '5',
-  email: 'owner@example.com',
-  first_name: 'Ana',
-  last_name: 'Petrovic',
-  role: 'admin',
-  permissions: ['can_view_user'],
-};
-const withToken = () => ({ headers: { authorization: `Bearer ${generateToken().token}` } });
 
 // ---- /api/auth/login ----
 
@@ -73,49 +60,39 @@ test('login: a database failure is a generic 500 that leaks nothing', async () =
   assert.doesNotMatch(JSON.stringify(res.body), /secret|postgres/);
 });
 
-// ---- /api/auth/me ----
+// ---- /api/auth/me (the guard has already checked the session: see _guardCore.test.js) ----
 
-test('me: no token is 401', async () => {
-  const res = fakeRes();
-  await handleMe({ method: 'GET', headers: {} }, res, fakeSql());
-  assert.equal(res.statusCode, 401);
-});
+const auth = {
+  sessionId: '11',
+  expiresAt: '2026-12-08T10:00:00.000Z',
+  user: { id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', role: 'admin' },
+  permissions: ['can_view_user'],
+};
 
-test('me: an unknown, expired or inactive session is 401 (the statement finds nothing)', async () => {
+test('me: returns the user, permissions and expiry, and not the session id', async () => {
   const res = fakeRes();
-  await handleMe({ method: 'GET', ...withToken() }, res, fakeSql([['update sessions', []]]));
-  assert.equal(res.statusCode, 401);
-});
-
-test('me: a valid session returns the user, permissions and expiry', async () => {
-  const res = fakeRes();
-  await handleMe({ method: 'GET', ...withToken() }, res, fakeSql([['update sessions', [sessionRow]]]));
+  await handleMe({ method: 'GET', headers: {} }, res, { auth });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, {
-    user: { id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', role: 'admin' },
+    user: auth.user,
     permissions: ['can_view_user'],
     expiresAt: '2026-12-08T10:00:00.000Z',
   });
+  assert.equal(res.headers['Cache-Control'], 'no-store');
 });
 
 test('me: only GET', async () => {
   const res = fakeRes();
-  await handleMe({ method: 'POST', headers: {} }, res, fakeSql());
+  await handleMe({ method: 'POST', headers: {} }, res, { auth });
   assert.equal(res.statusCode, 405);
 });
 
 // ---- /api/auth/logout ----
 
-test('logout: needs a session (401 without one)', async () => {
-  const res = fakeRes();
-  await handleLogout({ method: 'POST', headers: {} }, res, fakeSql());
-  assert.equal(res.statusCode, 401);
-});
-
 test('logout: sets is_active = false on the current session and nothing else', async () => {
-  const sql = fakeSql([['update sessions s', [sessionRow]]]);
+  const sql = fakeSql();
   const res = fakeRes();
-  await handleLogout({ method: 'POST', ...withToken() }, res, sql);
+  await handleLogout({ method: 'POST', headers: {} }, res, { sql, auth });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { ok: true });
   const revoke = sql.callsTo('set is_active = false');
@@ -126,6 +103,6 @@ test('logout: sets is_active = false on the current session and nothing else', a
 
 test('logout: only POST', async () => {
   const res = fakeRes();
-  await handleLogout({ method: 'GET', headers: {} }, res, fakeSql());
+  await handleLogout({ method: 'GET', headers: {} }, res, { sql: fakeSql(), auth });
   assert.equal(res.statusCode, 405);
 });
