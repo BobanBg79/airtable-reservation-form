@@ -35,16 +35,36 @@ const sendJson = (res, status, body) => {
   res.end(JSON.stringify(body));
 };
 
+// Like Vercel: a JSON body becomes an object; anything else (or nothing) is undefined. At most 100 KB.
+async function readJsonBody(req) {
+  if (!['POST', 'PUT', 'PATCH'].includes(req.method ?? '')) return undefined;
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 100_000) return undefined;
+    chunks.push(chunk);
+  }
+  if (!String(req.headers['content-type'] ?? '').includes('application/json')) return undefined;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${HOST}`);
-  // Only /api/<name> where api/<name>.js exists. Files starting with "_" are helpers, not routes.
-  const match = /^\/api\/([a-z][a-z0-9-]*)$/.exec(url.pathname);
+  // Only /api/<name> or /api/<folder>/<name> where the .js file exists. Files starting with "_" are helpers,
+  // not routes (the pattern cannot match them).
+  const match = /^\/api\/([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)?)$/.exec(url.pathname);
   const file = match && path.join(ROOT, 'api', `${match[1]}.js`);
   if (!file || !fs.existsSync(file)) return sendJson(res, 404, { error: 'Not found' });
 
-  // The bits of Vercel's request and response helpers the functions use. (No endpoint reads a
-  // request body yet; add body parsing here together with the first write endpoint.)
+  // The bits of Vercel's request and response helpers the functions use: req.query, req.body (parsed JSON)
+  // and res.status / res.json.
   req.query = Object.fromEntries(url.searchParams);
+  req.body = await readJsonBody(req);
   res.status = (code) => {
     res.statusCode = code;
     return res;
