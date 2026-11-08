@@ -23,7 +23,8 @@ Rules:
 
 - `neondb_owner` is never used by the running app and is never put into Vercel.
 - `delta_app` has no `DELETE`, no `TRUNCATE`, no `REFERENCES`/`TRIGGER`, and cannot run any DDL (no `CREATE`, `ALTER`, `DROP`, no temporary tables, no new schemas).
-- Rows are never deleted by the app. A reservation is cancelled by changing its status (`Cancelled`, `No show`), and apartments and guests are deactivated (see [ADR 0003](0003-soft-delete.md)); corrections that truly need a delete are done by the owner.
+- Rows are never deleted by the app. A reservation is cancelled by changing its status (`Cancelled`, `No show`), and apartments and guests are deactivated (see [ADR 0003](0003-soft-delete.md)); there is no delete at all, not even by the owner (see [ADR 0007](0007-access-model.md)).
+- Since [ADR 0007](0007-access-model.md), `BEFORE DELETE` and `BEFORE TRUNCATE` triggers on every table refuse deletes for any role, **`neondb_owner` included**. The role privileges above are the first line; the triggers are the last.
 - `delta_app` and `delta_readonly` both have `CONNECT` on the database and `USAGE` on schema `public`.
 
 ## How the roles were provisioned
@@ -75,7 +76,7 @@ After cleanup, `public` had 0 tables. The production branch still has only `neon
 
 - Migrations run with `MIGRATION_DATABASE_URL` and always as `neondb_owner`, so default privileges apply to everything they create. Tables created by hand with another role need explicit grants.
 - The audit log table (next design step) should be append-only for the app: grant `INSERT` but revoke `UPDATE` on it from `delta_app`.
-- The app cannot delete data, so "delete" features are modelled as status changes.
+- Nobody can delete data (the app by privilege, the owner by trigger), so "delete" features are modelled as status changes.
 - Production needs the same roles created and verified before launch; use new passwords, not the dev ones.
 
 ## Open questions

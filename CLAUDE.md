@@ -39,9 +39,16 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
 
 ## Auth (new requirement)
 - Today anyone with the link can create bookings. Fix this.
-- Roles, from most to least permissions: `admin` (every permission; the only one that edits other roles' permissions, never its own, and the only one that manages users), `business_owner` (the only one besides admin who sees owner contact, rent and other finance data) and `manager` (enters and manages reservations, and can see reservation amounts). `editor` and `viewer` are dropped. Access model: one role per user, permissions attached to roles (`users`, `roles`, `permissions`, `role_permissions`), named `can_<action>_<entity>` or `can_<action>_<entity>_<sub_entity>` (for example `can_create_reservation`, `can_view_apartment_owner_contact`); viewing and editing are separate permissions; the API checks permissions, not role names, and leaves out the fields a caller may not see. Login is email based; the owner is the first admin and creates the accounts. Details and open questions: `TODO.md`, "Authentication, users, roles and permissions".
-- Keep it simple: e.g. PIN or magic-link login handled by Vercel functions, session token in secure storage (Expo SecureStore / httpOnly cookie on web). Every write endpoint checks the permission server-side.
-- Propose the approach before implementing.
+- Access model (ADR 0007, brief `docs/briefs/users-roles-permissions.md`): five roles, `admin`, `business_owner`, `manager`, `cleaning_lady`, `handyman`; one role per user; permissions attached to roles (`users`, `roles`, `permissions`, `role_permissions`), named `can_<action>_<entity>` or `can_<action>_<entity>_<sub_entity>` with actions only `view`, `create`, `edit` (cancel and deactivate are `edit`; there is no delete). 19 permissions, listed once in `packages/core`. Admin has all of them; only admin manages users and other roles' permissions, and nobody changes the admin role's own permissions (a hard rule, not a permission). The API checks permissions, not role names, and leaves out the fields a caller may not see.
+- Login is email + password (email is the username, lowercase), no mail service. Passwords are stored only as a slow salted hash that is never returned to any client; the admin sets and resets them. The owner is the first admin (created by a script) and creates the accounts.
+- Sessions: token in secure storage (Expo SecureStore / httpOnly cookie on web). Every write endpoint checks the permission server-side, deny by default.
+- New screens: Users (list; create and edit later, admin only) and Manage roles (admin only). Until authentication exists, `/api/users` is public (`KNOWN_ISSUES.md` 19).
+- Propose the authentication approach (hash algorithm, sessions, rate limiting) before implementing it.
+
+## Nothing is ever deleted (ADR 0007)
+- No row is deleted from any table, `users` and `role_permissions` included: use `is_active = false`. `BEFORE DELETE` and `BEFORE TRUNCATE` triggers refuse it for every role, `neondb_owner` too.
+- **Migrations never delete rows from any table, never drop a table or column, and never drop or disable a trigger.** They run only with `npm run db:migrate`. Claude Code writes them; there is no automatic check, so follow this rule every time.
+- The dev data is "reset" by deactivating old seed reservations and re-seeding, never by `TRUNCATE` or a new branch (`docs/database-migrations.md`).
 
 ## Target architecture: MVVM monorepo
 Goal: all logic in Model + ViewModel, so the two Views are thin and developed independently.
@@ -103,7 +110,7 @@ Owner uses **Windows** + VS Code and an Android phone on USB. For running the ap
 - Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Neon / database rules
-The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema, 0005 Vercel uses the dev branch for now): read them before any database or schema work. No new work on Airtable.
+The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema, 0005 Vercel uses the dev branch for now, 0006 mobile navigation, 0007 access model and delete protection): read them before any database or schema work. No new work on Airtable.
 - Locally always use the Neon `dev` branch. The app connects as `delta_app`; `neondb_owner` is only for migrations (`MIGRATION_DATABASE_URL`) and never goes into Vercel.
 - After every `neon deploy`, `neon env`, `neon init` or `neon checkout`, run `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use `delta_app` and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner.
 - Production connection strings never go into `.env.local` or any local file, and never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.
@@ -130,5 +137,5 @@ Everything below is on `main` (commit and push only on request).
 **Where to start a new session**
 1. `git checkout main && git pull origin main`, then a new feature branch from `main`.
 2. Read `TODO.md` (the next tasks, in a suggested order), `KNOWN_ISSUES.md` and the ADRs in `docs/decisions/` that touch the task.
-3. Suggested next task: **authentication** (`TODO.md`; propose the approach to the owner first). After it: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
+3. Suggested next task: **users, roles and permissions** (`TODO.md`, subtasks 1 to 4), then **authentication** (propose the approach to the owner first), then subtasks 5 and 6. After them: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
 4. To see the app on the phone: `/phone-preview`. The deployed app shows fake dev data and no real data may be entered yet (ADR 0005, `KNOWN_ISSUES.md` 16 and 17).

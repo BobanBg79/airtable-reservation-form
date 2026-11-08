@@ -13,7 +13,7 @@
 
 ## Conventions (every table)
 
-English `snake_case` names. `id bigint generated always as identity`. `is_active boolean not null default true` (deactivate instead of delete). `created_at` and `updated_at` as `timestamptz not null default now()`, with a trigger that keeps `updated_at` current. `created_by` and `updated_by` as `text not null` (the user's name for now, later a foreign key to a users table). Money in EUR.
+English `snake_case` names. `id bigint generated always as identity`. `is_active boolean not null default true` (deactivate instead of delete). `created_at` and `updated_at` as `timestamptz not null default now()`, with a trigger that keeps `updated_at` current. `created_by` and `updated_by` as `text not null` (the user's name for now; since [ADR 0007](0007-access-model.md) they become `bigint` foreign keys to `users`, converted in place). Money in EUR.
 
 ## Tables
 
@@ -32,6 +32,10 @@ Recorded so the earlier documents are not read as current:
 3. **No `inquiry` status yet.** The enum is `active`, `cancelled`, `no_show`. The owner confirmed that `inquiry` (a short-term calendar hold, often with incomplete data) is still needed, so this is temporary; see the open question below. `api/_status.js` still has `Inquiry` and the Airtable names until the API moves to Postgres.
 4. **`apartments.name` is unique across all rows**, including inactive ones, not only among active rows (ADR 0003 suggested a partial unique index). A deactivated apartment keeps its name.
 5. **No audit log table yet.** `created_by` and `updated_by` columns cover "who" for now; a full history table is future work.
+
+## Access tables (added 2026-11-08, ADR 0007)
+
+`users` (`email` unique and lowercase, `password_hash`, `first_name`, `last_name`, `phone`, `role_id`, `is_active`, `last_login_at`), `roles` (with a protected flag for admin), `permissions` and `role_permissions` (`is_active` instead of delete). Same conventions as above. Every table also gets `BEFORE DELETE` and `BEFORE TRUNCATE` triggers that refuse for any role.
 
 ## Not in this schema (next tasks)
 

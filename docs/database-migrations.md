@@ -7,6 +7,7 @@ The schema lives in [`db/schema.ts`](../db/schema.ts). Migrations are SQL files 
 - **Locally, migrations run only against the Neon `dev` branch, as `neondb_owner`** (`MIGRATION_DATABASE_URL` in `.env.local`). `drizzle.config.ts` refuses to run for any other role or branch, and `npm run db:migrate` runs `npm run check:env` first.
 - **Never migrate production from this machine** and never put production connection strings in a local file (ADR 0002, "Local env safety"). How production gets its migrations is still to be decided.
 - **Never edit a migration that has been applied.** Fix mistakes with a new migration.
+- **A migration never deletes rows from any table, never drops a table or a column, and never drops or disables a trigger** (ADR 0007). Migrations run only with `npm run db:migrate`. Every migration that adds a permission also grants it to admin.
 - Commit the schema change, the new `.sql` file and the `db/migrations/meta/` changes together.
 
 ## How to add a column
@@ -35,17 +36,32 @@ This creates an empty `.sql` file in `db/migrations/`; write the SQL in it. Sepa
 
 ## Seeding the dev branch (fake data)
 
-`npm run db:seed` puts fake data into the Neon `dev` branch so the app has something to show: nine apartments and 25 reservations. The apartment names are the first nine real names from the calendar screen (`Atlas`, `Berlin`, `Devetka`, `Egzotik`, `Eli`, `Kapiten`, `Karuzo`, `Luna`, `Margareta`); everything else is made up (`scripts/seed-data.mjs`). The reservations are laid out from a fixed base date, `SEED_BASE_DATE` (2026-11-07): stays in progress, one starting on the base day, same-day changeovers, short and long stays, all four channels, some running into December, and no overlaps within an apartment. It is idempotent: an apartment is matched by name and a reservation by apartment, guest and dates, so running it again adds only what is missing. That is also how the set was extended from three apartments and ten reservations: the original ten keep their exact dates (a test pins them), so they are recognised and only the new ones are added. Because the dates come from a fixed day, the data ages. When all stays are in the past the seed prints a note; then move `SEED_BASE_DATE` forward, reset the `dev` data as the owner (`neondb_owner` can `TRUNCATE` the two tables) and run the seed again. Do not move the date without a reset: the old rows would stay next to the new ones and could overlap them.
+`npm run db:seed` puts fake data into the Neon `dev` branch so the app has something to show: nine apartments and 25 reservations. The apartment names are the first nine real names from the calendar screen (`Atlas`, `Berlin`, `Devetka`, `Egzotik`, `Eli`, `Kapiten`, `Karuzo`, `Luna`, `Margareta`); everything else is made up (`scripts/seed-data.mjs`). The reservations are laid out from a fixed base date, `SEED_BASE_DATE` (2026-11-07): stays in progress, one starting on the base day, same-day changeovers, short and long stays, all four channels, some running into December, and no overlaps within an apartment. It is idempotent: an apartment is matched by name and a reservation by apartment, guest and dates, so running it again adds only what is missing. That is also how the set was extended from three apartments and ten reservations: the original ten keep their exact dates (a test pins them), so they are recognised and only the new ones are added. Because the dates come from a fixed day, the data ages. When all stays are in the past the seed prints a note; then reset the dev data as described below. Do not move the date without the reset: the old rows would stay active next to the new ones and could overlap them.
+
+### Dev reset (nothing is deleted)
+
+The delete-blocking triggers (ADR 0007) refuse `DELETE` and `TRUNCATE` for every role, `neondb_owner` included, and a new Neon branch is not used for this either. When the seed data ages:
+
+1. As the owner, run one `UPDATE` that sets the old seed reservations to `is_active = false` (`UPDATE reservations SET is_active = false WHERE created_by = <the dev-seed user's id>`).
+2. Move `SEED_BASE_DATE` forward in `scripts/seed-data.mjs` (and the test that pins the dates).
+3. Run `npm run db:seed`. Its idempotency and overlap logic ignore inactive rows, so the new stays are added next to the deactivated ones.
+
+Apartments are updated in place only if needed, and users stay. The deactivated reservations remain in the table but are not shown and do not block dates.
 
 The seed imports the date helpers from `packages/core` (TypeScript), so it needs a Node version that strips types (22.18 or newer).
 
 It can only ever touch `dev`, in layers:
 1. It is a manual command in `scripts/`. No install, build or deploy step runs it, and nothing in `api/` imports it.
 2. It refuses on Vercel, in CI, with `NODE_ENV=production`, with a `DATABASE_URL` set in the shell, with a role other than `delta_app`, or a branch other than `dev` (`scripts/local-guard.mjs`, shared with `npm run dev:api`). Connection details come from `.env.local` only. The role and branch rule is the same one `npm run check:env` uses (`api/_dbGuard.js`).
-3. It refuses if `apartments` or `reservations` contain any row not created by the seed (`created_by = 'dev-seed'`), so it cannot add fake rows next to real data.
+3. It refuses if `apartments` or `reservations` contain any row not created by the seed (created by the `dev-seed` system user; before the audit columns became foreign keys this was the text `'dev-seed'`), so it cannot add fake rows next to real data.
 4. It runs as `delta_app` (insert only), so it cannot delete or change the schema.
 
 The real apartments for production come from the one-time data migration, not from a seed. Never put real owner phone numbers, addresses or guests in `scripts/seed-data.mjs`.
+
+## The `dev-seed` system user and the first admin
+
+- **`dev-seed`** is a system user (it cannot sign in: it has an unusable `password_hash` and is not an admin) that owns every seeded row through `created_by` and `updated_by`. It is created by the migration that turns the audit columns into foreign keys. Other existing audit values point at the first admin.
+- **First admin:** a one-off script, run by the database owner, creates the project owner as `admin`. The email and password are entered at run time (a prompt, never a command-line argument or a file), so they never reach Git or shell history. It uses the same guards as the seed (dev branch only until the production branch exists) and refuses if an admin already exists. It is added in subtask 2 of `TODO.md` (`scripts/create-admin.mjs`); this section gets the exact command then.
 
 ## Running the API and the app locally
 
@@ -69,6 +85,7 @@ Tables created by a migration (as `neondb_owner`) get the default privileges fro
 | `23503` | foreign key violation | unknown `apartment_id` |
 | `22P02` | invalid enum value | channel or status outside the allowed list |
 | `22012` | division by zero | check-out equal to check-in (the generated `price_per_night_eur` is evaluated before the check constraint, so this code appears instead of `23514`) |
-| `23001` | restrict violation | deleting an apartment that has reservations (owner only) |
+| `23001` | restrict violation | deleting an apartment that has reservations (now refused earlier by the delete trigger) |
+| `P0001` | raised by a trigger | any `DELETE` or `TRUNCATE`, or deactivating an admin permission (ADR 0007) |
 
 The API should validate dates and fields first and map these codes to clear 4xx responses.

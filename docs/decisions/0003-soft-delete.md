@@ -9,6 +9,10 @@
 
 The app role `delta_app` has no `DELETE` privilege (ADR 0002), but features such as "remove an apartment" will be needed. Rows are referenced by foreign keys: reservations point to apartments and guests. A real `DELETE` would either be refused by the database, or, with `ON DELETE CASCADE`, wipe the booking history and revenue records with it.
 
+## Update (2026-11-08, [ADR 0007](0007-access-model.md))
+
+**Nothing is ever deleted**, `role_permissions` and `users` included. The exception below for `neondb_owner` no longer exists: `BEFORE DELETE` and `BEFORE TRUNCATE` triggers refuse deletes for every role. Erasure requests are handled by anonymizing.
+
 ## Decision
 
 Entities are **deactivated**, not deleted. The app never needs `DELETE`, and `delta_app` keeps not having it.

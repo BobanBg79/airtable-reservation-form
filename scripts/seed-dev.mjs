@@ -90,7 +90,7 @@ console.log(`${reservationsAdded ? 'added  ' : 'exists '} reservations: ${reserv
 const today = todayInBelgrade();
 const last = planned.map((r) => r.check_out_date).sort().at(-1);
 if (last < today) {
-  console.warn(`NOTE: every seeded stay ends before today (${today}). Move SEED_BASE_DATE forward and reset the dev data.`);
+  console.warn(`NOTE: every seeded stay ends before today (${today}). Deactivate the old seed reservations and move SEED_BASE_DATE forward (docs/database-migrations.md, "Dev reset").`);
 }
 
 const counts = await sql.query('select (select count(*) from apartments)::int as a, (select count(*) from reservations)::int as r');

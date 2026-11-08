@@ -8,7 +8,7 @@ export const SEED_MARKER = 'dev-seed'; // value of created_by / updated_by on ev
 // All reservation dates are laid out from this fixed day (it was "today" when the data was written).
 // A fixed day keeps the seed idempotent: a reservation is recognised by apartment, guest and dates,
 // so running again adds only what is missing and never creates overlaps. The data ages: when it is
-// all in the past, move this date forward and reset the dev data (see docs/database-migrations.md).
+// all in the past, deactivate the old seed reservations and move this date forward (see "Dev reset" in docs/database-migrations.md).
 export const SEED_BASE_DATE = '2026-11-07';
 
 // The first nine of the real apartments, in alphabetical order. "Margareta" is deliberately in the
