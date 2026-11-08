@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadApartmentDetails, loadApartments, loadCalendar } from './_pgReads.js';
+import { loadApartmentDetails, loadApartments, loadCalendar, loadUsers } from './_pgReads.js';
 import { PG_FREES_DATES } from './_status.js';
 
 // A fake SQL client: records every query and answers from a queue keyed by a fragment of the SQL.
@@ -98,4 +98,48 @@ test('loadApartmentDetails maps every column to the camelCase wire format', asyn
   assert.match(text, /where is_active/);
   assert.match(text, /order by name/);
   assert.deepEqual(sql.calls[0].params ?? [], []);
+});
+
+// ---- users ----
+
+const userRow = {
+  id: '5',
+  email: 'owner@example.com',
+  first_name: 'Ana',
+  last_name: 'Petrovic',
+  phone: null,
+  role: 'admin',
+  is_active: true,
+  last_login_at: null,
+};
+
+test('loadUsers maps rows to camelCase with the role name', async () => {
+  const sql = fakeSql({
+    'from users u': [userRow, { ...userRow, id: '7', role: 'manager', phone: '+381601234567', is_active: false, last_login_at: new Date('2026-11-08T10:00:00Z') }],
+  });
+  assert.deepEqual(await loadUsers(sql), [
+    { id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', phone: null, role: 'admin', isActive: true, lastLoginAt: null },
+    { id: '7', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', phone: '+381601234567', role: 'manager', isActive: false, lastLoginAt: '2026-11-08T10:00:00.000Z' },
+  ]);
+});
+
+test('loadUsers never selects or returns a password hash', async () => {
+  // Even if the database row somehow carried the hash, the mapping copies fields one by one.
+  const sql = fakeSql({ 'from users u': [{ ...userRow, password_hash: '$2b$12$secret', passwordHash: '$2b$12$secret' }] });
+  const users = await loadUsers(sql);
+
+  assert.doesNotMatch(sql.calls[0].text, /password/i);
+  assert.doesNotMatch(sql.calls[0].text, /select\s+\*/i);
+  assert.doesNotMatch(JSON.stringify(users), /password|secret|\$2b/i);
+  assert.deepEqual(Object.keys(users[0]).sort(), [
+    'email', 'firstName', 'id', 'isActive', 'lastLoginAt', 'lastName', 'phone', 'role',
+  ]);
+});
+
+test('loadUsers keeps inactive users but leaves out system users', async () => {
+  const sql = fakeSql({ 'from users u': [] });
+  await loadUsers(sql);
+  const text = sql.calls[0].text;
+  assert.doesNotMatch(text, /where[^;]*is_active/);
+  assert.match(text, /not like '%@system\.local'/);
 });

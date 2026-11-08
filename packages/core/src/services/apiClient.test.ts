@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { toYearMonth } from '../models/date';
-import { ApiError, createApiClient, mapApartmentsResponse, type FetchLike } from './apiClient';
+import { ApiError, createApiClient, mapApartmentsResponse, mapUsersResponse, type FetchLike } from './apiClient';
 
 const NOV = toYearMonth('2026-11');
 
@@ -150,5 +150,41 @@ describe('mapApartmentsResponse', () => {
   it('returns an empty list for anything that is not an array', () => {
     expect(mapApartmentsResponse({ error: 'x' })).toEqual([]);
     expect(mapApartmentsResponse(undefined)).toEqual([]);
+  });
+});
+
+describe('createApiClient.getUsers / mapUsersResponse', () => {
+  const userDto = {
+    id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic',
+    phone: null, role: 'admin', isActive: true, lastLoginAt: null,
+  };
+
+  it('calls the endpoint and maps the users', async () => {
+    const fetch = vi.fn<FetchLike>(async () =>
+      jsonResponse(200, [userDto, { ...userDto, id: '7', phone: '+381601234567', role: 'manager', isActive: false, lastLoginAt: '2026-11-08T10:00:00.000Z' }]),
+    );
+    const list = await createApiClient({ baseUrl: 'https://example.com/', fetch }).getUsers();
+
+    expect(fetch).toHaveBeenCalledWith('https://example.com/api/users', expect.anything());
+    expect(list[0]).toEqual(userDto);
+    expect(list[1]).toMatchObject({ id: '7', phone: '+381601234567', role: 'manager', isActive: false, lastLoginAt: '2026-11-08T10:00:00.000Z' });
+  });
+
+  it('never copies a password field, even if the response had one', () => {
+    const [user] = mapUsersResponse([{ ...userDto, passwordHash: '$2b$12$x', password_hash: '$2b$12$x', password: 'x' }]);
+    expect(JSON.stringify(user)).not.toMatch(/password|\$2b/i);
+    expect(Object.keys(user!).sort()).toEqual(['email', 'firstName', 'id', 'isActive', 'lastLoginAt', 'lastName', 'phone', 'role']);
+  });
+
+  it('skips malformed items and a non-array response', () => {
+    expect(mapUsersResponse([userDto, { ...userDto, id: 7 }, { ...userDto, isActive: 'yes' }, null])).toHaveLength(1);
+    expect(mapUsersResponse({ error: 'x' })).toEqual([]);
+  });
+
+  it('throws ApiError with the server message', async () => {
+    const failing = vi.fn<FetchLike>(async () => jsonResponse(500, { error: 'Could not load users.' }));
+    await expect(createApiClient({ baseUrl: '', fetch: failing }).getUsers()).rejects.toMatchObject({
+      name: 'ApiError', status: 500, message: 'Could not load users.',
+    });
   });
 });

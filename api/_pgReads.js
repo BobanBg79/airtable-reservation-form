@@ -41,6 +41,36 @@ export async function loadApartmentDetails(sql) {
 }
 
 /**
+ * Users with their role name, ordered by name (the Users screen). Active and inactive ones: a deactivated
+ * user stays in the list, marked inactive. System users (emails ending in `@system.local`, such as the
+ * `dev-seed` owner of the seed rows) are not people and are left out.
+ *
+ * NEVER returns the password hash. The columns are listed by name (no `select *`), and each row is mapped
+ * field by field, so a column added to `users` later cannot leak by accident (ADR 0007).
+ * NOTE: the endpoint has no auth yet (KNOWN_ISSUES 19); it moves behind `can_view_user` with authentication.
+ */
+export async function loadUsers(sql) {
+  const rows = await sql.query(
+    `select u.id::text as id, u.email, u.first_name, u.last_name, u.phone, r.name as role,
+            u.is_active, u.last_login_at
+       from users u
+       join roles r on r.id = u.role_id
+      where u.email not like '%@system.local'
+      order by lower(u.first_name), lower(u.last_name), u.id`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    phone: r.phone ?? null,
+    role: r.role,
+    isActive: r.is_active,
+    lastLoginAt: r.last_login_at ? new Date(r.last_login_at).toISOString() : null,
+  }));
+}
+
+/**
  * Apartments plus the reservations that block dates within [start, end), both YYYY-MM-DD.
  * A reservation belongs to the month when checkIn < end and checkOut > start (same rule as everywhere).
  * Dates are selected as text on purpose: the driver would turn a `date` into a JS Date and shift it.

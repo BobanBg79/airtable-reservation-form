@@ -36,6 +36,9 @@ export default function TabsLayout() {
         <TabTrigger name="apartments" href="/apartments" asChild>
           <TabBarItem label="Apartments" icon="office-building-outline" activeIcon="office-building" compact={compact} />
         </TabTrigger>
+        <TabTrigger name="users" href="/users" asChild>
+          <TabBarItem label="Users" icon="account-group-outline" activeIcon="account-group" compact={compact} />
+        </TabTrigger>
       </TabList>
     </Tabs>
   );

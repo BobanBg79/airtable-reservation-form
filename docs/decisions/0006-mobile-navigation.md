@@ -19,6 +19,7 @@ The mobile app was a single calendar screen. The owner asked for several screens
 | `/calendar` | `(tabs)/calendar.tsx` | The multi-calendar (moved from `index.tsx`). |
 | `/apartments` | `(tabs)/apartments.tsx` | The apartments list; two columns on a wide screen. |
 | `/apartment/[id]` | `apartment/[id].tsx` | Read-only details of one apartment. |
+| `/users` | `(tabs)/users.tsx` | The users list (built 2026-11-08; fourth tab; temporarily public, admin only after authentication). |
 
 - **Planned by [ADR 0007](0007-access-model.md):** `/users` (the Users screen: a list now, temporarily public, admin only after authentication; create and edit follow) and `/roles` (Manage roles, admin only: each role's permissions, read-only for admin). Both are protected routes; a tab or menu entry appears only with the matching permission.
 - **Bottom tabs** for Home, Calendar and Apartments, built with the headless `expo-router/ui` (`Tabs`, `TabSlot`, `TabList`, `TabTrigger asChild`). In SDK 58 `Tabs` from `expo-router` is deprecated. The bar is our own Material 3 style (`components/TabBarItem.tsx`): a pill behind the selected icon, labels under the icons in portrait, and a shorter bar with icon and label side by side in landscape, where height is scarce (the calendar already needs it).

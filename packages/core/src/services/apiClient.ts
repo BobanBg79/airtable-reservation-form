@@ -1,5 +1,5 @@
 import { isValidISODate, isValidYearMonth } from '../models/date';
-import type { Apartment, ApartmentDetails, ISODate, Reservation, YearMonth } from '../models/types';
+import type { Apartment, ApartmentDetails, ISODate, Reservation, UserSummary, YearMonth } from '../models/types';
 
 /** Minimal fetch signature, so core doesn't depend on DOM or Node typings. */
 export type FetchLike = (
@@ -33,6 +33,8 @@ export interface ApiClient {
   getCalendar(month: YearMonth): Promise<CalendarData>;
   /** All active apartments with their details, ordered by name. */
   getApartments(): Promise<ApartmentDetails[]>;
+  /** The users with their role (never a password). */
+  getUsers(): Promise<UserSummary[]>;
 }
 
 // ---- Wire format of GET /api/calendar ----
@@ -114,6 +116,36 @@ export function mapApartmentsResponse(dto: unknown): ApartmentDetails[] {
   return out;
 }
 
+// ---- Wire format of GET /api/users ----
+
+/**
+ * Maps the response, skipping any item with a missing field or a wrong type. Fields are copied one by one,
+ * so anything else in the response (such as a password hash, which the server never sends) is dropped.
+ */
+export function mapUsersResponse(dto: unknown): UserSummary[] {
+  if (!Array.isArray(dto)) return [];
+  const out: UserSummary[] = [];
+  for (const u of dto as Record<string, unknown>[]) {
+    if (
+      u !== null && typeof u === 'object' &&
+      isString(u.id) && isString(u.email) && isString(u.firstName) && isString(u.lastName) &&
+      isString(u.role) && isBoolean(u.isActive)
+    ) {
+      out.push({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        phone: isString(u.phone) && u.phone !== '' ? u.phone : null,
+        role: u.role,
+        isActive: u.isActive,
+        lastLoginAt: isString(u.lastLoginAt) ? u.lastLoginAt : null,
+      });
+    }
+  }
+  return out;
+}
+
 async function readError(res: { status: number; json(): Promise<unknown> }, fallback: string): Promise<string> {
   try {
     const body = (await res.json()) as { error?: unknown };
@@ -147,6 +179,9 @@ export function createApiClient({ baseUrl, fetch: fetchImpl }: ApiClientOptions)
     },
     async getApartments() {
       return mapApartmentsResponse(await getJson('/api/apartments', 'Could not load apartments.'));
+    },
+    async getUsers() {
+      return mapUsersResponse(await getJson('/api/users', 'Could not load users.'));
     },
   };
 }

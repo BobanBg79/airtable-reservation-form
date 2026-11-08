@@ -13,7 +13,7 @@ Suggested order (the owner decides): 1. Users, roles and permissions, then authe
 1. **Migration: access tables and reference data.** `users`, `roles`, `permissions`, `role_permissions` (ADR 0004 conventions, `updated_at` triggers); seed the 5 roles, the 19 permissions and the role sets; one permission list in `packages/core` with a test that compares it to the database; `BEFORE DELETE` and `BEFORE TRUNCATE` triggers on every table; protected admin role and a trigger on `role_permissions`. Dev branch only.
 2. **Script: create the first admin.** Run by the database owner, credentials entered at run time, never in the repo, dev-only guards; documented in `docs/database-migrations.md`.
 3. **Migration: audit columns become foreign keys.** `dev-seed` system user, other values point at the first admin, `ALTER COLUMN ... TYPE ... USING` in place; update the seed guard; the seed ignores inactive rows. Depends on 2.
-4. **API and screen: list of users.** `GET /api/users` with the role, never `password_hash`; a Users screen. Temporarily public (`KNOWN_ISSUES.md` 19).
+4. **API and screen: list of users.** `GET /api/users` with the role, never `password_hash`; a Users screen (fourth tab). Temporarily public (`KNOWN_ISSUES.md` 19). Built; checked against the local API.
 5. **Create and edit users (after authentication).** Admin only (`can_create_user`, `can_edit_user`); edit lets the admin set a new password (the forgotten-password flow); deactivating is an edit.
 6. **Manage roles screen (after authentication).** Admin only; add or deactivate permissions on roles other than admin; admin's permissions shown read-only; the server answers 403 on any change to the admin role.
 

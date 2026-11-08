@@ -33,6 +33,24 @@ export interface ApartmentDetails extends Apartment {
   parkingSpot: string | null;
 }
 
+/**
+ * A user as the Users screen shows it. There is deliberately no password (hash) field: the API never
+ * sends one and the client never reads one (ADR 0007).
+ */
+export interface UserSummary {
+  id: string;
+  /** The login; stored lowercase. */
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  /** Role name, e.g. "business_owner". */
+  role: string;
+  isActive: boolean;
+  /** ISO timestamp of the last login, or null if the user never signed in. */
+  lastLoginAt: string | null;
+}
+
 export interface Reservation {
   id: string;
   apartmentId: string;

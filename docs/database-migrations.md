@@ -60,7 +60,7 @@ The real apartments for production come from the one-time data migration, not fr
 
 ## The `dev-seed` system user and the first admin
 
-- **`dev-seed`** is a system user (it cannot sign in: it has an unusable `password_hash` and is not an admin) that owns every seeded row through `created_by` and `updated_by`. It is created by the migration that turns the audit columns into foreign keys. Other existing audit values point at the first admin.
+- **`dev-seed`** is a system user (it cannot sign in: it has an unusable `password_hash` and is not an admin) that owns every seeded row through `created_by` and `updated_by`. It is created by the migration that turns the audit columns into foreign keys. System users have an email ending in `@system.local`; `GET /api/users` leaves them out because they are not people. Other existing audit values point at the first admin.
 - **First admin:** a one-off script, run by the database owner, creates the project owner as `admin`. The email and password are entered at run time (a prompt, never a command-line argument or a file), so they never reach Git or shell history. It uses the same guards as the seed (dev branch only until the production branch exists) and refuses if an admin already exists. Run it **in your own terminal** (it refuses piped input, so Claude Code cannot run it for you; in the Claude Code prompt you can type `! npm run db:create-admin`):
 
   ```

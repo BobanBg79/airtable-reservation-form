@@ -8,3 +8,4 @@ export * from './models/calendarLayout';
 export * from './models/colors';
 export * from './services/apiClient';
 export * from './models/permissions';
+export * from './models/user';
