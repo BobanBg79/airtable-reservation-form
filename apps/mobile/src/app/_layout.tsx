@@ -58,7 +58,7 @@ function StartupCover() {
       {status === 'offline' ? (
         <>
           <Text variant="titleLarge" style={s.coverTitle}>
-            Can't reach the server
+            {"Can't reach the server"}
           </Text>
           <Text variant="bodyLarge" style={[s.coverText, { color: theme.colors.onSurfaceVariant }]}>
             {message ?? 'Check your internet connection and try again.'}

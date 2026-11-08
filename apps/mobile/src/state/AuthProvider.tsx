@@ -42,7 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const checking = useRef(0);
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state; // read by the foreground listener below
+  }, [state]);
 
   const endSession = useCallback(async () => {
     await clearToken();
