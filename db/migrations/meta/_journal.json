@@ -15,6 +15,27 @@
       "when": 1794086100476,
       "tag": "0001_updated_at_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794151020183,
+      "tag": "0002_nasty_wolfpack",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794151046271,
+      "tag": "0003_access_reference_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794151048751,
+      "tag": "0004_delete_protection",
+      "breakpoints": true
     }
   ]
 }

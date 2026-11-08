@@ -7,3 +7,4 @@ export * from './models/apartment';
 export * from './models/calendarLayout';
 export * from './models/colors';
 export * from './services/apiClient';
+export * from './models/permissions';

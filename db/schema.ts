@@ -14,6 +14,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------------------------
@@ -126,6 +127,98 @@ export const reservations = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------------------------
+// Access model (ADR 0007): users, roles, permissions, role_permissions
+// ---------------------------------------------------------------------------------------------
+// `created_by` and `updated_by` are text for now, like the other tables; the migration that turns
+// them into foreign keys to `users` converts every table in place (TODO.md, subtask 3).
+// The permission list lives in packages/core (`PERMISSIONS`); the reference-data migration inserts
+// exactly those names and a test compares the two. Nothing in these tables is ever deleted: triggers
+// refuse DELETE and TRUNCATE for every role.
+
+// Not a SQL bind parameter, see PHONE_REGEX. Deliberately simple: no spaces, one "@", a dot in the domain.
+const EMAIL_REGEX = sql.raw(`'^[^@ ]+@[^@ ]+[.][^@ ]+$'`);
+
+export const roles = pgTable(
+  'roles',
+  {
+    id: id(),
+    name: text('name').notNull().unique(), // admin, business_owner, manager, cleaning_lady, handyman
+    description: text('description'),
+    // The admin role is protected: it cannot be renamed, deactivated or unprotected, and its
+    // role_permissions rows cannot be deactivated (triggers).
+    isProtected: boolean('is_protected').notNull().default(false),
+    isActive: isActive(),
+    ...timestamps(),
+    ...audit(),
+  },
+  (t) => [check('roles_name_format', sql`${t.name} ~ ${sql.raw(`'^[a-z][a-z_]*$'`)}`)],
+);
+
+export const permissions = pgTable(
+  'permissions',
+  {
+    id: id(),
+    // can_<action>_<entity> or can_<action>_<entity>_<sub_entity>; action is view, create or edit.
+    name: text('name').notNull().unique(),
+    isActive: isActive(),
+    ...timestamps(),
+    ...audit(),
+  },
+  (t) => [
+    check('permissions_name_format', sql`${t.name} ~ ${sql.raw(`'^can_(view|create|edit)_[a-z]+(_[a-z]+)*$'`)}`),
+  ],
+);
+
+export const rolePermissions = pgTable(
+  'role_permissions',
+  {
+    id: id(),
+    roleId: bigint('role_id', { mode: 'number' })
+      .notNull()
+      .references(() => roles.id, { onDelete: 'restrict' }),
+    permissionId: bigint('permission_id', { mode: 'number' })
+      .notNull()
+      .references(() => permissions.id, { onDelete: 'restrict' }),
+    // Removing a permission from a role sets this to false (never a delete).
+    isActive: isActive(),
+    ...timestamps(),
+    ...audit(),
+  },
+  (t) => [unique('role_permissions_role_permission_unique').on(t.roleId, t.permissionId)],
+);
+
+export const users = pgTable(
+  'users',
+  {
+    id: id(),
+    email: text('email').notNull().unique(), // the username, stored lowercase
+    // Slow salted hash (argon2 or bcrypt). Never returned to any client, admin included.
+    passwordHash: text('password_hash').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    phone: text('phone'), // optional
+    roleId: bigint('role_id', { mode: 'number' })
+      .notNull()
+      .references(() => roles.id, { onDelete: 'restrict' }),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    isActive: isActive(),
+    ...timestamps(),
+    ...audit(),
+  },
+  (t) => [
+    check('users_email_lowercase', sql`${t.email} = lower(${t.email})`),
+    check('users_email_format', sql`${t.email} ~ ${EMAIL_REGEX}`),
+    check('users_phone_format', sql`${t.phone} ~ ${PHONE_REGEX}`),
+    index('users_role_idx').on(t.roleId),
+  ],
+);
+
+export type Role = typeof roles.$inferSelect;
+export type Permission = typeof permissions.$inferSelect;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Apartment = typeof apartments.$inferSelect;
 export type NewApartment = typeof apartments.$inferInsert;
 export type Reservation = typeof reservations.$inferSelect;
