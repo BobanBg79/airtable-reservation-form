@@ -24,6 +24,7 @@ Rules:
 - `neondb_owner` is never used by the running app and is never put into Vercel.
 - `delta_app` has no `DELETE`, no `TRUNCATE`, no `REFERENCES`/`TRIGGER`, and cannot run any DDL (no `CREATE`, `ALTER`, `DROP`, no temporary tables, no new schemas).
 - Rows are never deleted by the app. A reservation is cancelled by changing its status (`Cancelled`, `No show`), and apartments and guests are deactivated (see [ADR 0003](0003-soft-delete.md)); there is no delete at all, not even by the owner (see [ADR 0007](0007-access-model.md)).
+- `login_attempts` is append-only for the app as this ADR asked for the audit log: `delta_app` has INSERT and SELECT but no UPDATE on it ([ADR 0008](0008-authentication.md)).
 - Since [ADR 0007](0007-access-model.md), `BEFORE DELETE` and `BEFORE TRUNCATE` triggers on every table refuse deletes for any role, **`neondb_owner` included**. The role privileges above are the first line; the triggers are the last.
 - `delta_app` and `delta_readonly` both have `CONNECT` on the database and `USAGE` on schema `public`.
 

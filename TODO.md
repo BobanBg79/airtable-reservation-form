@@ -4,34 +4,22 @@ Planned work. Decisions live in `docs/decisions/` (ADRs), known problems in `KNO
 
 ## Next tasks
 
-Suggested order (the owner decides): 1. Users, roles and permissions, then authentication, 2. `inquiry` status and the overlap constraint, 3. write endpoints and the New reservation screen, 4. ViewModels, 5. the production branch and the data migration, 6. the web app. Auth comes first because it gates every write endpoint and the point at which real data may be entered.
+Suggested order (the owner decides): 1. Subtasks 5 and 6 of the users task (users and roles screens; subtasks 1 to 4 and authentication are done), 2. `inquiry` status and the overlap constraint, 3. write endpoints and the New reservation screen, 4. ViewModels, 5. the production branch and the data migration, 6. the web app. Auth comes first because it gates every write endpoint and the point at which real data may be entered.
 
-### Task: Users, roles and permissions (start here)
+### Task: Users, roles and permissions (subtasks 1 to 4 and authentication done; start with 5)
 
 **Brief and decisions:** `docs/briefs/users-roles-permissions.md` (approved 2026-11-08) and ADR 0007. Where the brief and an older doc disagree, the brief wins. Six subtasks; 1 to 4 first, 5 and 6 right after authentication.
 
 1. **Migration: access tables and reference data.** `users`, `roles`, `permissions`, `role_permissions` (ADR 0004 conventions, `updated_at` triggers); seed the 5 roles, the 19 permissions and the role sets; one permission list in `packages/core` with a test that compares it to the database; `BEFORE DELETE` and `BEFORE TRUNCATE` triggers on every table; protected admin role and a trigger on `role_permissions`. Dev branch only.
 2. **Script: create the first admin.** Run by the database owner, credentials entered at run time, never in the repo, dev-only guards; documented in `docs/database-migrations.md`.
 3. **Migration: audit columns become foreign keys.** `dev-seed` system user, other values point at the first admin, `ALTER COLUMN ... TYPE ... USING` in place; update the seed guard; the seed ignores inactive rows. Depends on 2.
-4. **API and screen: list of users.** `GET /api/users` with the role, never `password_hash`; a Users screen (fourth tab). Temporarily public (`KNOWN_ISSUES.md` 19). Built; checked against the local API.
-5. **Create and edit users (after authentication).** Admin only (`can_create_user`, `can_edit_user`); edit lets the admin set a new password (the forgotten-password flow); deactivating is an edit.
+4. **API and screen: list of users.** `GET /api/users` with the role, never `password_hash`; a Users screen (fourth tab). Temporarily public (`KNOWN_ISSUES.md` 19). Built and pushed; since authentication it needs `can_view_user`.
+5. **Create and edit users.** Admin only (`can_create_user`, `can_edit_user`); edit lets the admin set a new password (the forgotten-password flow), **and setting a new password or deactivating a user must also revoke that user's sessions** (`sessions.is_active = false`, `updated_by` = the admin; ADR 0008); deactivating is an edit.
 6. **Manage roles screen (after authentication).** Admin only; add or deactivate permissions on roles other than admin; admin's permissions shown read-only; the server answers 403 on any change to the admin role.
 
+**Authentication (done, ADR 0008):** login, sessions, the deny-by-default guard, field filtering and the app screens, one commit each on `feature/authentication`.
+
 **Acceptance.** Migrations apply on `dev` only and never delete rows, drop tables or columns, or drop or disable triggers; no DELETE or TRUNCATE works for any role; the database and the code permission lists match (test); `/api/users` never contains a password hash; `npm run typecheck` and `npm test` pass.
-
-### Task: Authentication (after subtasks 1 to 4 above)
-
-**Why.** There is no auth. Anyone who knows the URL can read everything the API serves, including owner contact data (`KNOWN_ISSUES.md` 17), and the write endpoints that come next must be restricted. This also gives the Home screen its signed-in user.
-
-**Propose the approach to the owner before writing code** (`CLAUDE.md`, "Auth"). Decided already (ADR 0007): email + password, no mail service, a slow salted hash (argon2 or bcrypt) checked only on the server.
-
-- A login endpoint (hash check, rate limited), sessions (Expo SecureStore on mobile, httpOnly cookie on web).
-- **Server guard:** one central `requirePermission('can_create_reservation')` that resolves the user from the session and checks the permission before any handler code runs. **Deny by default**: an endpoint without a declared permission is refused, and a test fails if a route in `api/` has no guard (public routes such as login are listed explicitly). Unauthenticated is 401, missing permission is 403. Cover every endpoint and role with a role and endpoint matrix test.
-- **Field-level filtering:** the server leaves out what the caller may not see (for example owner name, phone and rent from `/api/apartments` without `can_view_apartment_owner_contact` / `can_view_apartment_rent`), instead of sending it and hoping the app hides it. In `packages/core` the rent and owner fields of `ApartmentDetails` become optional and the screens handle their absence.
-- **Apps:** after login the app receives the user, the role and the permission names. A tab or section appears only with its permission (Calendar needs `can_view_reservation`, Apartments needs `can_view_apartment`); opening a hidden screen by link shows a "no access" screen. `packages/core` holds a pure `can(permissions, name)` with tests. This is UX only; the server guard protects the data.
-- Move the Users screen and `/api/users` behind admin (`can_view_user`).
-
-**Acceptance criteria.** Unauthenticated requests get 401 on everything except login; a role gets 403 on anything it lacks the permission for; permissions are read from the role (changing a role's permissions changes what its users can do without a code change); a role without `can_view_apartment_owner_contact` receives no owner fields; a role without the permission for a screen does not see its tab; the app shows a login screen and keeps the session.
 
 ### Task: Apartment details, edit mode
 
@@ -44,7 +32,7 @@ Suggested order (the owner decides): 1. Users, roles and permissions, then authe
 - Two people editing the same apartment: the save should notice that the record changed since it was loaded (compare `updated_at`) and say so instead of silently overwriting.
 - `updated_by` and `updated_at` are set on save (the trigger keeps `updated_at` current). Deactivating an apartment follows ADR 0003 (`is_active`), not a delete.
 
-**Depends on:** users, roles and permissions, and authentication (above).
+**Depends on:** users, roles and permissions, and authentication (done).
 
 **Where.** A `PATCH` endpoint in `api/` plus a guard from the auth task; form state and validation as a ViewModel in `packages/core` (pure `validateApartmentInput` next to `validateReservationInput`, with tests); the screen in `apps/mobile` stays thin. Show a clear saving state and a success message.
 

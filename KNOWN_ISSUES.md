@@ -4,7 +4,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 
 ## Security and correctness (`api/`)
 
-- [ ] **1. No authentication.** There is no write endpoint at the moment (`api/reserve.js` was removed with Airtable), so nothing can be written through the API. Auth must be in place before the new create, edit and cancel endpoints exist; see "Auth" in `CLAUDE.md` (propose the approach before implementing).
+- [x] **1. No authentication.** Fixed on `feature/authentication` (ADR 0008): every route needs a session except login, and a test fails if a route has no guard. Write endpoints (to come) must use `protect('can_...', ...)`.
 
 > Database decision: Airtable was replaced by PostgreSQL on Neon (`docs/decisions/0001-database.md`) and the code no longer uses it. Items 2 to 4 below are closed for that reason.
 
@@ -12,7 +12,7 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [x] **3. Race condition.** Closed by design: the Postgres exclusion constraint on (apartment, date range) will prevent overlapping bookings atomically, including for edits (`TODO.md`, task 2). Map the constraint error to HTTP 409.
 - [x] **4. Unchecked optional fields.** The old endpoint is gone. Keep the intent: validate `phone`, `note`, `amount` (type, length) in the new endpoint and return 400.
 - [ ] **5. UTC default month.** `api/calendar.js` uses UTC for the default month when `?month=` is missing. The mobile app always sends the month, so low priority.
-- [ ] **6. Handlers in `api/` are untested.** The guard (`_dbGuard.js`) and the read queries (`_pgReads.js`, with a fake SQL client) have tests (`npm run test:api`, Node's built-in `node:test`, part of `npm test`), but `calendar.js` and `apartments.js` themselves do not (month parsing, error response). Add tests the same way (call the handler with a fake `req`/`res`; the SQL client needs to be injectable first).
+- [x] **6. Handlers in `api/` are untested.** Fixed: the route logic lives in `api/_dataHandlers.js` and `api/_authHandlers.js` with the SQL client and the caller passed in, and is tested with a fake client (`api/_dataHandlers.test.js`, `api/_authHandlers.test.js`, `api/_guardCore.test.js`).
 
 ## Mobile app (`apps/mobile`)
 
@@ -30,9 +30,11 @@ Open problems found while reviewing the repo (2026-11-05). Tick a box when it is
 - [ ] **14. `adb` not on PATH in the current VS Code session.** The folder is already in the user PATH; restarting VS Code picks it up. Until then use the full WinGet path to `adb.exe`.
 - [ ] **15. `npm audit`: 5 moderate vulnerabilities** (2026-11-06), all in the Expo dev toolchain, none in code we ship: `expo`, `@expo/cli`, `@expo/fingerprint` (all via `glob`/`minimatch`), `glob` (AbortSignal cancellation bypass allows post-timeout filesystem traversal) and `minimatch` (denial of service via globparts amplification). The only suggested fix is `expo@53.0.11`, a downgrade from SDK 58; do NOT run `npm audit fix --force`. Revisit with the next Expo SDK upgrade.
 - [ ] **16. Production reads the Neon `dev` branch (ADR 0005).** `api/calendar.js` and `api/apartments.js` read only from Neon, and for now Vercel Production is pointed at the `dev` branch, so the deployed app shows fake data and no real data may be entered. Order matters: add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500. Ends with the "Production" item in `TODO.md` (production branch with its own roles and passwords, schema, real data, safe migrations, backup).
-- [ ] **17. The API is open and now publishes owner contact data.** `GET /api/apartments` returns every apartment's owner name, owner phone and rent to anyone who knows the URL (there is no auth yet). Harmless with the fake dev data, but real data must not go in until there is auth, or those fields are limited to the business_owner role and admin (`CLAUDE.md`, "Auth").
+- [x] **17. The API is open and now publishes owner contact data.** Fixed: `/api/apartments` needs `can_view_apartment`, and owner name, phone and rent are left out without `can_view_apartment_owner_contact` / `can_view_apartment_rent` (ADR 0008). Real data still must not be entered while Vercel uses the `dev` branch (item 16).
+- [ ] **20. Sessions are not revoked when the admin resets a password.** Until subtask 5 (create and edit users) exists there is no password reset in the app; when it is built, setting a new password or deactivating a user must revoke that user's sessions (`TODO.md`). Deactivation already blocks the user at once, because every request checks that the user is active.
+- [ ] **21. `x-forwarded-for` is trusted for the login limits.** Safe on Vercel (it sets the header); anywhere else a client could vary it to dodge the per-IP limit. Only the local dev server runs elsewhere.
 - [ ] **18. Landscape calendar loses about a row to the bottom bar.** With the bar visible, 7 of 9 apartment rows fit without scrolling on the test phone. Options: a slimmer bar, or hide it while scrolling the grid.
-- [ ] **19. `GET /api/users` is temporarily public.** It (and the Users tab of the app) returns every user's name, email, phone and role to anyone who knows the URL; the password hash is never selected, mapped or sent (tests in `api/_pgReads.test.js` and `packages/core`). The owner accepted this for now (2026-11-08). It is public only until the authentication task, which moves it behind admin (`can_view_user`) together with item 17. Do not create real users on `dev` before then.
+- [x] **19. `GET /api/users` is temporarily public.** Fixed: it needs `can_view_user` (admin only by default) and the Users tab shows only with that permission (ADR 0008).
 
 ## Done
 

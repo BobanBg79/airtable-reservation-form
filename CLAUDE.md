@@ -19,8 +19,7 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
   - **Order matters:** add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500 (`KNOWN_ISSUES.md` 16).
 - **Existing files:**
-  - `api/apartments.js` — GET active apartments with all their details (address, floor, area, owner, rent, amenities...).
-  - `api/calendar.js` — GET `?month=YYYY-MM`, apartments + reservations that block dates in month.
+  - Every route needs a session (ADR 0008): `api/auth/login.js` (public), `api/auth/me.js`, `api/auth/logout.js`, `api/calendar.js` (`can_view_reservation`), `api/apartments.js` (`can_view_apartment`; owner contact and rent only with their own permissions), `api/users.js` (`can_view_user`). Each exports its handler through `protect`, `authenticated` or `publicRoute` from `api/_guard.js`; a test fails if a route has none.
   - There is no write endpoint yet: `api/reserve.js` (Airtable) was removed; create, edit and cancel are to be written on Postgres (`TODO.md`).
   - Helpers (not routes): `api/_db.js` (the Neon connection), `api/_pgReads.js` (read queries), `api/_status.js`, `api/_dbGuard.js`.
   - The old `index.html` / `calendar.html` pages were deleted; the apps are the only clients.
@@ -41,9 +40,11 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
 - Today anyone with the link can create bookings. Fix this.
 - Access model (ADR 0007, brief `docs/briefs/users-roles-permissions.md`): five roles, `admin`, `business_owner`, `manager`, `cleaning_lady`, `handyman`; one role per user; permissions attached to roles (`users`, `roles`, `permissions`, `role_permissions`), named `can_<action>_<entity>` or `can_<action>_<entity>_<sub_entity>` with actions only `view`, `create`, `edit` (cancel and deactivate are `edit`; there is no delete). 19 permissions, listed once in `packages/core`. Admin has all of them; only admin manages users and other roles' permissions, and nobody changes the admin role's own permissions (a hard rule, not a permission). The API checks permissions, not role names, and leaves out the fields a caller may not see.
 - Login is email + password (email is the username, lowercase), no mail service. Passwords are stored only as a slow salted hash that is never returned to any client; the admin sets and resets them. The owner is the first admin (created by a script) and creates the accounts.
-- Sessions: token in secure storage (Expo SecureStore / httpOnly cookie on web). Every write endpoint checks the permission server-side, deny by default.
-- New screens: Users (list; create and edit later, admin only) and Manage roles (admin only). Until authentication exists, `/api/users` is public (`KNOWN_ISSUES.md` 19).
-- Propose the authentication approach (hash algorithm, sessions, rate limiting) before implementing it.
+- Sessions (ADR 0008): a database session token, not JWT. At login a random 32-byte token is made and only its SHA-256 hash is stored (`sessions`); the app sends `Authorization: Bearer <token>` and keeps it in expo-secure-store. Expiry slides 30 days with a hard cap of 90 days from login, in the same statement that checks the session. Logout and revocation set `is_active = false`. Login is rate limited (5 failures per email + IP or 30 per IP in 15 minutes give 429, `login_attempts`), every failure answers "Invalid email or password".
+- The guard is deny by default: every route in `api/` uses `protect('can_...', handler)`, `authenticated(handler)` or `publicRoute(handler)`; 401 = not signed in or session ended, 403 = missing permission. Only login is public. New routes need a guard, and the approved route table is pinned in `scripts/api-guard.test.mjs` (change it on purpose).
+- Field filtering: without `can_view_apartment_owner_contact` the server leaves out `ownerName` and `ownerPhone`; without `can_view_apartment_rent` it leaves out `monthlyRentEur` (keys absent). These fields are optional in `packages/core` and the screens skip them.
+- Screens: Login, and Users (list; create and edit later, admin only) and Manage roles (admin only, later). Tabs show only with their permission (`SCREEN_PERMISSIONS` in core); a screen opened without it shows "No access".
+- Testing the app on the phone now needs a sign-in (the production API requires it once this is deployed): use the owner's account; Claude cannot sign in for the owner.
 
 ## Nothing is ever deleted (ADR 0007)
 - No row is deleted from any table, `users` and `role_permissions` included: use `is_active = false`. `BEFORE DELETE` and `BEFORE TRUNCATE` triggers refuse it for every role, `neondb_owner` too.
@@ -74,7 +75,7 @@ Rules:
 ## Mobile app structure (`apps/mobile/src`, Expo Router; see ADR 0006)
 - `app/_layout.tsx`: providers (Paper theme, `ApartmentsProvider`) and the root `Stack`.
 - `app/(tabs)/_layout.tsx`: bottom navigation. In SDK 58 `Tabs` from `expo-router` is deprecated; use the headless `expo-router/ui` (`Tabs`, `TabSlot`, `TabList`, `TabTrigger asChild`). The bar is our own Material 3 style (`components/TabBarItem.tsx`), shorter with icon and label side by side in landscape. The triggers must be direct children of `<TabList>`.
-- Tabs (Home, Calendar, Apartments, Users): `(tabs)/index.tsx` Home (greeting for now; the signed-in user comes with auth), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen), `(tabs)/users.tsx` the users list (temporarily public, admin only after authentication; `GET /api/users` never returns a password hash).
+- Tabs (Home, Calendar, Apartments, Users): `(tabs)/index.tsx` Home (greets the signed-in user, shortcuts by permission, Sign out), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen), `(tabs)/users.tsx` the users list (temporarily public, admin only after authentication; `GET /api/users` never returns a password hash).
 - `app/apartment/[id].tsx`: read-only apartment details, pushed on the root stack so Back returns to the list or to the calendar. Opened from a row in the list and by tapping an apartment name in the calendar (`MonthGrid` `onPressApartment`).
 - Data: `src/api.ts` is the one API client; `state/ApartmentsProvider.tsx` loads the apartments once for the whole app (TEMPORARY, to become a ViewModel in `packages/core`, like `hooks/useCalendarData.ts`). Pure logic such as `formatFloor`, `apartmentAmenities`, `formatEur` and the `/api/apartments` parsing lives in `packages/core` with tests.
 - Every apartment keeps one colour everywhere (`apartmentHues` in `core`): calendar bars, list avatars and the detail hero.
@@ -110,7 +111,7 @@ Owner uses **Windows** + VS Code and an Android phone on USB. For running the ap
 - Don't break the live `api/*`: the mobile app uses it in production.
 
 ## Neon / database rules
-The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema, 0005 Vercel uses the dev branch for now, 0006 mobile navigation, 0007 access model and delete protection): read them before any database or schema work. No new work on Airtable.
+The database is PostgreSQL on Neon (Neon project `Delta`, `damp-dream-71823503`); the data source is always Neon, with no switch and no Airtable code. Decisions live in `docs/decisions/` (ADR 0001 database, 0002 roles and local env safety, 0003 soft delete, 0004 schema, 0005 Vercel uses the dev branch for now, 0006 mobile navigation, 0007 access model and delete protection, 0008 authentication): read them before any database or schema work. No new work on Airtable.
 - Locally always use the Neon `dev` branch. The app connects as `delta_app`; `neondb_owner` is only for migrations (`MIGRATION_DATABASE_URL`) and never goes into Vercel.
 - After every `neon deploy`, `neon env`, `neon init` or `neon checkout`, run `npm run check:env`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must use `delta_app` and `NEON_BRANCH` must be `dev`. If not, fix it before running the app and tell the owner.
 - Production connection strings never go into `.env.local` or any local file, and never run `neon` commands with `--branch production` locally. Production credentials live only in Vercel's Production environment variables.
@@ -137,5 +138,5 @@ Everything below is on `main` (commit and push only on request).
 **Where to start a new session**
 1. `git checkout main && git pull origin main`, then a new feature branch from `main`.
 2. Read `TODO.md` (the next tasks, in a suggested order), `KNOWN_ISSUES.md` and the ADRs in `docs/decisions/` that touch the task.
-3. Suggested next task: **users, roles and permissions** (`TODO.md`, subtasks 1 to 4), then **authentication** (propose the approach to the owner first), then subtasks 5 and 6. After them: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
+3. Suggested next task: subtasks 5 and 6 of the users task (create and edit users, Manage roles; `TODO.md`), now that authentication is done. After them: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
 4. To see the app on the phone: `/phone-preview`. The deployed app shows fake dev data and no real data may be entered yet (ADR 0005, `KNOWN_ISSUES.md` 16 and 17).

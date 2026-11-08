@@ -56,7 +56,7 @@ export async function loadApartmentDetails(sql, { ownerContact = false, rent = f
  *
  * NEVER returns the password hash. The columns are listed by name (no `select *`), and each row is mapped
  * field by field, so a column added to `users` later cannot leak by accident (ADR 0007).
- * NOTE: the endpoint has no auth yet (KNOWN_ISSUES 19); it moves behind `can_view_user` with authentication.
+ * The route needs `can_view_user` (api/users.js).
  */
 export async function loadUsers(sql) {
   const rows = await sql.query(

@@ -77,6 +77,10 @@ The data source is always Neon; there is no switch. By default the app on the ph
 2. Create `apps/mobile/.env.local` (git-ignored) with `EXPO_PUBLIC_API_URL=http://localhost:3000` to point the app at it. Restart Expo with `npx expo start -c` after changing it, and delete the file to go back to production.
 3. A phone on USB reaches the server with `adb reverse tcp:3000 tcp:3000` (the server only listens on `127.0.0.1`, so nothing is exposed to the network).
 
+## Authentication tables (ADR 0008)
+
+`sessions` and `login_attempts` (migrations 0006 and 0007). `sessions` follows the usual conventions; `login_attempts` is insert only (no `is_active`, `updated_at` or audit columns) and `delta_app` has no UPDATE on it. Both have the delete and truncate triggers. Nothing in them is ever deleted: a session ends with `is_active = false`. `scripts/sessions-db.test.mjs` checks the real session SQL on the dev branch and leaves inactive session rows behind, so it only runs with `RUN_SESSION_DB_TESTS=1`.
+
 ## Permissions on new tables
 
 Tables created by a migration (as `neondb_owner`) get the default privileges from ADR 0002 automatically: `delta_app` can `SELECT`, `INSERT`, `UPDATE`; `delta_readonly` can `SELECT`; nobody but the owner can `DELETE` or run DDL. Nothing to grant by hand. Objects created by another role would not get them.

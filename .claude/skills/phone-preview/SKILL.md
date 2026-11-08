@@ -5,6 +5,8 @@ description: Run the Delta Reservations mobile app (Expo Go) on the owner's Andr
 
 # Preview the app on the phone
 
+**The app needs a sign-in** (ADR 0008): after the authentication work is deployed, the owner signs in with their own account on the phone; Claude cannot (it does not know the password, and must never ask for it in chat). Until that is on `main`, the production API has no login, so test against the local API below.
+
 By default the app talks to the **production API** (`https://airtable-reservation-form.vercel.app`, which currently serves the Neon `dev` branch: nine apartments with made-up details and 25 fake reservations, see ADR 0005). Only Metro (the Expo dev server) runs locally. Claude sees the screen through adb screenshots; the owner sees it on the phone.
 
 ## Prerequisites

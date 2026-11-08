@@ -37,6 +37,8 @@ Recorded so the earlier documents are not read as current:
 
 `users` (`email` unique and lowercase, `password_hash`, `first_name`, `last_name`, `phone`, `role_id`, `is_active`, `last_login_at`), `roles` (with a protected flag for admin), `permissions` and `role_permissions` (`is_active` instead of delete). Same conventions as above. Every table also gets `BEFORE DELETE` and `BEFORE TRUNCATE` triggers that refuse for any role.
 
+Authentication added `sessions` (conventions apply; the audit columns point at the session's own user) and `login_attempts` (insert only, the one exception to the conventions): [ADR 0008](0008-authentication.md).
+
 ## Not in this schema (next tasks)
 
 - The double-booking exclusion constraint on (apartment, date range): needs `btree_gist`, a half-open range `[check_in_date, check_out_date)` and only for blocking rows (`status = 'active'`, and probably `is_active`). Separate branch.
