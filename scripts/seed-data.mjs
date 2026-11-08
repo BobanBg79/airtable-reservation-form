@@ -3,7 +3,9 @@
 // from it). Everything else is made up. Never put real owner phone numbers, addresses or guests here.
 import { addDays, nightsBetween } from '../packages/core/src/models/date.ts';
 
-export const SEED_MARKER = 'dev-seed'; // value of created_by / updated_by on every seeded row
+// Email of the system user that owns every seeded row (created_by / updated_by). It is created by migration
+// 0005, cannot sign in, and is how the seed recognises its own rows (the columns are foreign keys to users).
+export const SEED_USER_EMAIL = 'dev-seed@system.local';
 
 // All reservation dates are laid out from this fixed day (it was "today" when the data was written).
 // A fixed day keeps the seed idempotent: a reservation is recognised by apartment, guest and dates,

@@ -53,7 +53,7 @@ The seed imports the date helpers from `packages/core` (TypeScript), so it needs
 It can only ever touch `dev`, in layers:
 1. It is a manual command in `scripts/`. No install, build or deploy step runs it, and nothing in `api/` imports it.
 2. It refuses on Vercel, in CI, with `NODE_ENV=production`, with a `DATABASE_URL` set in the shell, with a role other than `delta_app`, or a branch other than `dev` (`scripts/local-guard.mjs`, shared with `npm run dev:api`). Connection details come from `.env.local` only. The role and branch rule is the same one `npm run check:env` uses (`api/_dbGuard.js`).
-3. It refuses if `apartments` or `reservations` contain any row not created by the seed (created by the `dev-seed` system user; before the audit columns became foreign keys this was the text `'dev-seed'`), so it cannot add fake rows next to real data.
+3. It refuses if `apartments` or `reservations` contain any row not created by the seed (`created_by` is the `dev-seed` system user, looked up by its email `dev-seed@system.local`; before migration 0005 the column held the text `'dev-seed'`), so it cannot add fake rows next to real data.
 4. It runs as `delta_app` (insert only), so it cannot delete or change the schema.
 
 The real apartments for production come from the one-time data migration, not from a seed. Never put real owner phone numbers, addresses or guests in `scripts/seed-data.mjs`.
@@ -61,7 +61,13 @@ The real apartments for production come from the one-time data migration, not fr
 ## The `dev-seed` system user and the first admin
 
 - **`dev-seed`** is a system user (it cannot sign in: it has an unusable `password_hash` and is not an admin) that owns every seeded row through `created_by` and `updated_by`. It is created by the migration that turns the audit columns into foreign keys. Other existing audit values point at the first admin.
-- **First admin:** a one-off script, run by the database owner, creates the project owner as `admin`. The email and password are entered at run time (a prompt, never a command-line argument or a file), so they never reach Git or shell history. It uses the same guards as the seed (dev branch only until the production branch exists) and refuses if an admin already exists. It is added in subtask 2 of `TODO.md` (`scripts/create-admin.mjs`); this section gets the exact command then.
+- **First admin:** a one-off script, run by the database owner, creates the project owner as `admin`. The email and password are entered at run time (a prompt, never a command-line argument or a file), so they never reach Git or shell history. It uses the same guards as the seed (dev branch only until the production branch exists) and refuses if an admin already exists. Run it **in your own terminal** (it refuses piped input, so Claude Code cannot run it for you; in the Claude Code prompt you can type `! npm run db:create-admin`):
+
+  ```
+  npm run db:create-admin
+  ```
+
+  It asks for the email, first name, last name, an optional phone, and the password twice (not shown; at least 12 characters, bcrypt, cost 12). It connects as `neondb_owner` (`MIGRATION_DATABASE_URL`), which must point at the same Neon endpoint as `DATABASE_URL` (the `dev` branch), refuses if any admin exists, and prints only the email and the new id. The password hashing lives in `api/_password.js` and is shared with the future login.
 
 ## Running the API and the app locally
 

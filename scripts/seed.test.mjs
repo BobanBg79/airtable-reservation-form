@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { nightsBetween } from '../packages/core/src/models/date.ts';
-import { DEV_APARTMENTS, SEED_BASE_DATE, SEED_MARKER, buildDevReservations } from './seed-data.mjs';
+import { DEV_APARTMENTS, SEED_BASE_DATE, SEED_USER_EMAIL, buildDevReservations } from './seed-data.mjs';
 
 const PHONE = /^[+]?[0-9]{6,15}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -13,7 +13,7 @@ test('seed apartments have unique names and are marked as seed data', () => {
   const names = DEV_APARTMENTS.map((a) => a.name);
   assert.equal(new Set(names).size, names.length);
   assert.equal(DEV_APARTMENTS.length, 9);
-  assert.equal(SEED_MARKER, 'dev-seed');
+  assert.equal(SEED_USER_EMAIL, 'dev-seed@system.local');
 });
 
 test('seed apartments are the first nine real apartment names, in order', () => {

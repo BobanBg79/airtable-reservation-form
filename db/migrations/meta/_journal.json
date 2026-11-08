@@ -36,6 +36,13 @@
       "when": 1794151048751,
       "tag": "0004_delete_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794151697713,
+      "tag": "0005_gorgeous_sphinx",
+      "breakpoints": true
     }
   ]
 }

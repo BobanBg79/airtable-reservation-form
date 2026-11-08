@@ -3,6 +3,7 @@
 // See docs/database-migrations.md. Server side only: the mobile app never connects to the database.
 import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -41,10 +42,15 @@ const timestamps = () => ({
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-// User's name for now; later a foreign key to a users table.
+// Who created and last changed the row: a foreign key to `users` (ADR 0007). Seed rows belong to the
+// `dev-seed` system user. Lazy reference, because `users` is defined further down and points at itself.
 const audit = () => ({
-  createdBy: text('created_by').notNull(),
-  updatedBy: text('updated_by').notNull(),
+  createdBy: bigint('created_by', { mode: 'number' })
+    .notNull()
+    .references((): AnyPgColumn => users.id, { onDelete: 'restrict' }),
+  updatedBy: bigint('updated_by', { mode: 'number' })
+    .notNull()
+    .references((): AnyPgColumn => users.id, { onDelete: 'restrict' }),
 });
 
 // Optional "+", then 6 to 15 digits. Written with [+] to avoid backslash escaping in the SQL template.
@@ -130,8 +136,6 @@ export const reservations = pgTable(
 // ---------------------------------------------------------------------------------------------
 // Access model (ADR 0007): users, roles, permissions, role_permissions
 // ---------------------------------------------------------------------------------------------
-// `created_by` and `updated_by` are text for now, like the other tables; the migration that turns
-// them into foreign keys to `users` converts every table in place (TODO.md, subtask 3).
 // The permission list lives in packages/core (`PERMISSIONS`); the reference-data migration inserts
 // exactly those names and a test compares the two. Nothing in these tables is ever deleted: triggers
 // refuse DELETE and TRUNCATE for every role.
