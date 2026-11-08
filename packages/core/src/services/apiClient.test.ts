@@ -141,6 +141,29 @@ describe('mapApartmentsResponse', () => {
     expect(list.map((a) => a.id)).toEqual(['2']);
   });
 
+  it('accepts apartments without owner contact and rent (the server leaves them out without the permission)', () => {
+    const { ownerName: _n, ownerPhone: _p, monthlyRentEur: _r, ...restricted } = apartmentDto;
+    const [a] = mapApartmentsResponse([restricted]);
+    expect(a).toBeDefined();
+    expect('ownerName' in a!).toBe(false);
+    expect('ownerPhone' in a!).toBe(false);
+    expect('monthlyRentEur' in a!).toBe(false);
+    expect(a!.name).toBe(apartmentDto.name);
+  });
+
+  it('accepts rent without owner contact and the other way round', () => {
+    const { ownerName: _n, ownerPhone: _p, ...rentOnly } = apartmentDto;
+    expect(mapApartmentsResponse([rentOnly])[0]).toMatchObject({ monthlyRentEur: 350 });
+    const { monthlyRentEur: _r, ...contactOnly } = apartmentDto;
+    expect(mapApartmentsResponse([contactOnly])[0]).toMatchObject({ ownerName: 'Test Owner One', ownerPhone: '+38160000001' });
+  });
+
+  it('still rejects an owner or rent field that is present with the wrong type', () => {
+    expect(mapApartmentsResponse([{ ...apartmentDto, ownerName: 5 }])).toEqual([]);
+    expect(mapApartmentsResponse([{ ...apartmentDto, ownerPhone: null }])).toEqual([]);
+    expect(mapApartmentsResponse([{ ...apartmentDto, monthlyRentEur: '350' }])).toEqual([]);
+  });
+
   it('turns a missing or empty parking spot into null', () => {
     const { parkingSpot: _spot, ...noSpot } = apartmentDto;
     expect(mapApartmentsResponse([noSpot])[0]!.parkingSpot).toBeNull();

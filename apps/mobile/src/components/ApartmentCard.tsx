@@ -46,14 +46,17 @@ export function ApartmentCard({ apartment, hue, onPress }: Props) {
               {apartmentLocationLine(apartment)}
             </Text>
           </View>
-          <View style={s.rent}>
-            <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: '700' }}>
-              {formatEur(apartment.monthlyRentEur)}
-            </Text>
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              / month
-            </Text>
-          </View>
+          {/* The rent is left out by the server for roles without can_view_apartment_rent. */}
+          {apartment.monthlyRentEur !== undefined ? (
+            <View style={s.rent}>
+              <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: '700' }}>
+                {formatEur(apartment.monthlyRentEur)}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                / month
+              </Text>
+            </View>
+          ) : null}
           <Icon source="chevron-right" size={22} color={theme.colors.onSurfaceVariant} />
         </View>
       </TouchableRipple>

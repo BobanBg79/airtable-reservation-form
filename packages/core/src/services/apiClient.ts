@@ -91,9 +91,13 @@ export function mapApartmentsResponse(dto: unknown): ApartmentDetails[] {
     if (
       a !== null && typeof a === 'object' &&
       isString(a.id) && isString(a.name) && isString(a.address) && isString(a.apartmentNumber) &&
-      isNumber(a.floor) && isString(a.buildingName) && isNumber(a.areaM2) && isString(a.ownerName) &&
-      isString(a.ownerPhone) && isNumber(a.monthlyRentEur) && isBoolean(a.hasBathtub) &&
-      isBoolean(a.hasTerrace) && isBoolean(a.hasDishwasher)
+      isNumber(a.floor) && isString(a.buildingName) && isNumber(a.areaM2) && isBoolean(a.hasBathtub) &&
+      isBoolean(a.hasTerrace) && isBoolean(a.hasDishwasher) &&
+      // Owner contact and rent are optional (left out by the server without the permission), but when present
+      // they must have the right type.
+      (a.ownerName === undefined || isString(a.ownerName)) &&
+      (a.ownerPhone === undefined || isString(a.ownerPhone)) &&
+      (a.monthlyRentEur === undefined || isNumber(a.monthlyRentEur))
     ) {
       out.push({
         id: a.id,
@@ -103,9 +107,9 @@ export function mapApartmentsResponse(dto: unknown): ApartmentDetails[] {
         floor: a.floor,
         buildingName: a.buildingName,
         areaM2: a.areaM2,
-        ownerName: a.ownerName,
-        ownerPhone: a.ownerPhone,
-        monthlyRentEur: a.monthlyRentEur,
+        ...(isString(a.ownerName) ? { ownerName: a.ownerName } : {}),
+        ...(isString(a.ownerPhone) ? { ownerPhone: a.ownerPhone } : {}),
+        ...(isNumber(a.monthlyRentEur) ? { monthlyRentEur: a.monthlyRentEur } : {}),
         hasBathtub: a.hasBathtub,
         hasTerrace: a.hasTerrace,
         hasDishwasher: a.hasDishwasher,

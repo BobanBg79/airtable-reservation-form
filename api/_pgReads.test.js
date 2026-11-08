@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadApartmentDetails, loadApartments, loadCalendar, loadUsers } from './_pgReads.js';
+import { apartmentFieldAccess, loadApartmentDetails, loadApartments, loadCalendar, loadUsers } from './_pgReads.js';
 import { PG_FREES_DATES } from './_status.js';
 
 // A fake SQL client: records every query and answers from a queue keyed by a fragment of the SQL.
@@ -84,7 +84,7 @@ test('loadApartmentDetails maps every column to the camelCase wire format', asyn
       },
     ],
   });
-  const list = await loadApartmentDetails(sql);
+  const list = await loadApartmentDetails(sql, { ownerContact: true, rent: true });
   assert.deepEqual(list[0], {
     id: '4', name: 'Egzotik', address: 'Test Street 4, Belgrade', apartmentNumber: '4C', floor: 1,
     buildingName: 'Lala', areaM2: 41, ownerName: 'Test Owner Four', ownerPhone: '+38160000004',
@@ -98,6 +98,56 @@ test('loadApartmentDetails maps every column to the camelCase wire format', asyn
   assert.match(text, /where is_active/);
   assert.match(text, /order by name/);
   assert.deepEqual(sql.calls[0].params ?? [], []);
+});
+
+// ---- field filtering (owner contact and rent) ----
+
+const fullRow = {
+  id: '4', name: 'Egzotik', address: 'Test Street 4, Belgrade', apartment_number: '4C', floor: 1,
+  building_name: 'Lala', area_m2: 41, owner_name: 'Test Owner Four', owner_phone: '+38160000004',
+  monthly_rent_eur: 380, has_bathtub: false, has_terrace: false, has_dishwasher: true, parking_spot: null,
+};
+
+test('without any permission there are no owner and no rent fields, and they are not even selected', async () => {
+  const sql = fakeSql({ 'from apartments': [fullRow] }); // even if the database returned them
+  const [a] = await loadApartmentDetails(sql);
+  assert.equal('ownerName' in a, false);
+  assert.equal('ownerPhone' in a, false);
+  assert.equal('monthlyRentEur' in a, false);
+  assert.doesNotMatch(sql.calls[0].text, /owner_name|owner_phone|monthly_rent_eur/);
+  assert.doesNotMatch(JSON.stringify(a), /Test Owner|38160000004|380/);
+  assert.equal(a.name, 'Egzotik'); // the rest is still there
+});
+
+test('can_view_apartment_owner_contact adds exactly ownerName and ownerPhone', async () => {
+  const sql = fakeSql({ 'from apartments': [fullRow] });
+  const [a] = await loadApartmentDetails(sql, { ownerContact: true });
+  assert.equal(a.ownerName, 'Test Owner Four');
+  assert.equal(a.ownerPhone, '+38160000004');
+  assert.equal('monthlyRentEur' in a, false);
+  assert.match(sql.calls[0].text, /owner_name, owner_phone/);
+  assert.doesNotMatch(sql.calls[0].text, /monthly_rent_eur/);
+});
+
+test('can_view_apartment_rent adds exactly monthlyRentEur', async () => {
+  const sql = fakeSql({ 'from apartments': [fullRow] });
+  const [a] = await loadApartmentDetails(sql, { rent: true });
+  assert.equal(a.monthlyRentEur, 380);
+  assert.equal('ownerName' in a, false);
+  assert.equal('ownerPhone' in a, false);
+  assert.doesNotMatch(sql.calls[0].text, /owner_name|owner_phone/);
+});
+
+test('apartmentFieldAccess reads the two permissions from the session', () => {
+  assert.deepEqual(apartmentFieldAccess([]), { ownerContact: false, rent: false });
+  assert.deepEqual(apartmentFieldAccess(undefined), { ownerContact: false, rent: false });
+  assert.deepEqual(apartmentFieldAccess(['can_view_apartment']), { ownerContact: false, rent: false });
+  assert.deepEqual(apartmentFieldAccess(['can_view_apartment_rent']), { ownerContact: false, rent: true });
+  assert.deepEqual(apartmentFieldAccess(['can_view_apartment_owner_contact']), { ownerContact: true, rent: false });
+  assert.deepEqual(
+    apartmentFieldAccess(['can_view_apartment_owner_contact', 'can_view_apartment_rent']),
+    { ownerContact: true, rent: true },
+  );
 });
 
 // ---- users ----

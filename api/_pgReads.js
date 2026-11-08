@@ -9,19 +9,29 @@ export async function loadApartments(sql) {
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
+/** Which restricted apartment fields a caller may see, from the permission names of the session. */
+export function apartmentFieldAccess(permissions) {
+  const has = (name) => Array.isArray(permissions) && permissions.includes(name);
+  return { ownerContact: has('can_view_apartment_owner_contact'), rent: has('can_view_apartment_rent') };
+}
+
 /**
- * Active apartments with every detail, ordered by name (the apartments list and the detail screen).
+ * Active apartments with their details, ordered by name (the apartments list and the detail screen).
  * Field names are camelCase and ids are strings, which is what packages/core parses.
- * NOTE: includes the owner's name and phone and the rent; the API has no auth yet (KNOWN_ISSUES 17).
+ *
+ * FIELD FILTERING (ADR 0008): the owner's name and phone are read and returned only with
+ * `ownerContact: true` (can_view_apartment_owner_contact), the rent only with `rent: true`
+ * (can_view_apartment_rent). Without them the columns are not selected and the keys are absent from the
+ * response, not null. The default is nothing restricted.
  */
-export async function loadApartmentDetails(sql) {
-  const rows = await sql.query(
-    `select id::text as id, name, address, apartment_number, floor, building_name, area_m2,
-            owner_name, owner_phone, monthly_rent_eur, has_bathtub, has_terrace, has_dishwasher, parking_spot
-       from apartments
-      where is_active
-      order by name`,
-  );
+export async function loadApartmentDetails(sql, { ownerContact = false, rent = false } = {}) {
+  const columns = [
+    'id::text as id', 'name', 'address', 'apartment_number', 'floor', 'building_name', 'area_m2',
+    ...(ownerContact ? ['owner_name', 'owner_phone'] : []),
+    ...(rent ? ['monthly_rent_eur'] : []),
+    'has_bathtub', 'has_terrace', 'has_dishwasher', 'parking_spot',
+  ];
+  const rows = await sql.query(`select ${columns.join(', ')} from apartments where is_active order by name`);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -30,9 +40,8 @@ export async function loadApartmentDetails(sql) {
     floor: r.floor,
     buildingName: r.building_name,
     areaM2: r.area_m2,
-    ownerName: r.owner_name,
-    ownerPhone: r.owner_phone,
-    monthlyRentEur: r.monthly_rent_eur,
+    ...(ownerContact ? { ownerName: r.owner_name, ownerPhone: r.owner_phone } : {}),
+    ...(rent ? { monthlyRentEur: r.monthly_rent_eur } : {}),
     hasBathtub: r.has_bathtub,
     hasTerrace: r.has_terrace,
     hasDishwasher: r.has_dishwasher,

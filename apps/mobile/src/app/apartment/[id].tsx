@@ -50,7 +50,10 @@ export default function ApartmentDetailsScreen() {
 function ApartmentBody({ apartment: a, hue }: { apartment: ApartmentDetails; hue: number }) {
   const theme = useTheme<AppTheme>();
   const colors = barColors(hue, theme.dark);
-  const call = () => void Linking.openURL(`tel:${a.ownerPhone}`).catch(() => undefined);
+  const ownerPhone = a.ownerPhone;
+  const call = ownerPhone ? () => void Linking.openURL(`tel:${ownerPhone}`).catch(() => undefined) : undefined;
+  // Owner contact and rent are left out by the server for roles without the permission: skip them here.
+  const showOwner = a.ownerName !== undefined || a.ownerPhone !== undefined;
 
   return (
     <ScrollView contentContainerStyle={s.content}>
@@ -78,7 +81,9 @@ function ApartmentBody({ apartment: a, hue }: { apartment: ApartmentDetails; hue
       <View style={s.tiles}>
         <StatTile icon="stairs" value={formatFloor(a.floor)} caption="Floor" />
         <StatTile icon="ruler-square" value={formatArea(a.areaM2)} caption="Area" />
-        <StatTile icon="currency-eur" value={formatEur(a.monthlyRentEur)} caption="Monthly rent" />
+        {a.monthlyRentEur !== undefined ? (
+          <StatTile icon="currency-eur" value={formatEur(a.monthlyRentEur)} caption="Monthly rent" />
+        ) : null}
       </View>
 
       <Section title="Location">
@@ -95,10 +100,14 @@ function ApartmentBody({ apartment: a, hue }: { apartment: ApartmentDetails; hue
         </View>
       </Section>
 
-      <Section title="Owner">
-        <InfoRow icon="account-outline" label="Name" value={a.ownerName} />
-        <InfoRow icon="phone-outline" label="Phone" value={a.ownerPhone} onPress={call} accessibilityHint="Opens the phone app" />
-      </Section>
+      {showOwner ? (
+        <Section title="Owner">
+          {a.ownerName !== undefined ? <InfoRow icon="account-outline" label="Name" value={a.ownerName} /> : null}
+          {a.ownerPhone !== undefined ? (
+            <InfoRow icon="phone-outline" label="Phone" value={a.ownerPhone} onPress={call} accessibilityHint="Opens the phone app" />
+          ) : null}
+        </Section>
+      ) : null}
     </ScrollView>
   );
 }

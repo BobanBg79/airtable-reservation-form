@@ -22,10 +22,14 @@ export interface ApartmentDetails extends Apartment {
   /** e.g. "Mimoza" */
   buildingName: string;
   areaM2: number;
-  ownerName: string;
-  ownerPhone: string;
-  /** EUR */
-  monthlyRentEur: number;
+  /**
+   * Owner contact: only present with the permission can_view_apartment_owner_contact (the server leaves it
+   * out for other roles), so screens must handle its absence.
+   */
+  ownerName?: string;
+  ownerPhone?: string;
+  /** EUR. Only present with the permission can_view_apartment_rent. */
+  monthlyRentEur?: number;
   hasBathtub: boolean;
   hasTerrace: boolean;
   hasDishwasher: boolean;
