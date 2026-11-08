@@ -20,9 +20,10 @@ if (sql) {
 }
 const dbTest = (name, fn) => test(name, { skip: reachable ? false : 'dev database not reachable' }, fn);
 
-const TABLES = ['apartments', 'reservations', 'users', 'roles', 'permissions', 'role_permissions'];
+// login_attempts is the one exception to the audit columns (ADR 0004 exception, authentication brief).
+const TABLES = ['apartments', 'reservations', 'users', 'roles', 'permissions', 'role_permissions', 'sessions'];
 
-dbTest('created_by and updated_by are bigint foreign keys to users on every table', async () => {
+dbTest('created_by and updated_by are bigint foreign keys to users on every table (login_attempts excepted)', async () => {
   const cols = await sql.query(
     `select table_name, column_name, data_type from information_schema.columns
       where table_schema = 'public' and column_name in ('created_by', 'updated_by')`,

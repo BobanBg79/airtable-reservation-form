@@ -1,5 +1,5 @@
 // Keeps the permission list in packages/core, the reference-data migration and the dev database
-// identical (ADR 0007). The database part runs only when .env.local exists and the database answers;
+// identical, and checks the delete protection and privileges of every table (ADR 0007). The database part runs only when .env.local exists and the database answers;
 // it reads as delta_app (SELECT only).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -68,4 +68,35 @@ dbTest('the dev database gives every role its initial permissions (admin all of 
 dbTest('only the admin role is protected', async () => {
   const rows = await sql.query('select name from roles where is_protected');
   assert.deepEqual(rows.map((r) => r.name), ['admin']);
+});
+
+dbTest('every table has the DELETE and TRUNCATE triggers that refuse for any role', async () => {
+  const tables = (await sql.query(`select tablename from pg_tables where schemaname = 'public' order by 1`)).map((r) => r.tablename);
+  assert.ok(tables.includes('sessions') && tables.includes('login_attempts'), 'the authentication tables must exist');
+  const triggers = await sql.query(
+    `select c.relname as tbl, t.tgname as name, t.tgfoid::regproc::text as fn
+       from pg_trigger t join pg_class c on c.oid = t.tgrelid
+      where c.relnamespace = 'public'::regnamespace and not t.tgisinternal`,
+  );
+  for (const tbl of tables) {
+    for (const kind of ['delete', 'truncate']) {
+      const found = triggers.find((t) => t.tbl === tbl && t.name === `${tbl}_refuse_${kind}`);
+      assert.ok(found, `${tbl} has no ${kind} trigger`);
+      assert.match(found.fn, /refuse_delete/);
+    }
+  }
+});
+
+dbTest('delta_app can never DELETE or TRUNCATE, and login_attempts is insert only', async () => {
+  const tables = (await sql.query(`select tablename from pg_tables where schemaname = 'public'`)).map((r) => r.tablename);
+  const privilege = async (table, p) =>
+    (await sql.query('select has_table_privilege(current_user, $1, $2) as ok', [`public.${table}`, p]))[0].ok;
+  for (const t of tables) {
+    assert.equal(await privilege(t, 'DELETE'), false, `${t}: DELETE`);
+    assert.equal(await privilege(t, 'TRUNCATE'), false, `${t}: TRUNCATE`);
+  }
+  assert.equal(await privilege('login_attempts', 'INSERT'), true);
+  assert.equal(await privilege('login_attempts', 'SELECT'), true);
+  assert.equal(await privilege('login_attempts', 'UPDATE'), false);
+  assert.equal(await privilege('sessions', 'UPDATE'), true); // the expiry slides
 });

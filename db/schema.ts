@@ -218,10 +218,60 @@ export const users = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------------------------
+// Authentication (ADR 0008, docs/briefs/authentication.md): sessions and login attempts
+// ---------------------------------------------------------------------------------------------
+
+// A login session. Only the SHA-256 hash of the token is stored; the token itself never is. The expiry
+// slides (now + 30 days on each authenticated request) but never passes `max_expires_at` (login + 90 days).
+// Logout or revocation sets `is_active = false`; rows are never deleted. `created_by` is the session's own
+// user, `updated_by` is the admin when the admin revokes it.
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: id(),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    maxExpiresAt: timestamp('max_expires_at', { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    isActive: isActive(),
+    ...timestamps(),
+    ...audit(),
+  },
+  (t) => [
+    check('sessions_expiry_within_cap', sql`${t.expiresAt} <= ${t.maxExpiresAt}`),
+    index('sessions_user_idx').on(t.userId),
+  ],
+);
+
+// Every login attempt, for rate limiting. Insert only (delta_app has no UPDATE on this table). An exception to
+// the ADR 0004 conventions: no is_active, updated_at, created_by or updated_by, because a row is never changed
+// and a failed attempt has no user.
+export const loginAttempts = pgTable(
+  'login_attempts',
+  {
+    id: id(),
+    email: text('email').notNull(), // lowercase, as typed
+    ip: text('ip').notNull(),
+    userId: bigint('user_id', { mode: 'number' }).references(() => users.id, { onDelete: 'restrict' }), // null: unknown email
+    succeeded: boolean('succeeded').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('login_attempts_email_ip_created_idx').on(t.email, t.ip, t.createdAt),
+    index('login_attempts_ip_created_idx').on(t.ip, t.createdAt),
+  ],
+);
+
 export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Apartment = typeof apartments.$inferSelect;
 export type NewApartment = typeof apartments.$inferInsert;
