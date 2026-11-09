@@ -19,14 +19,14 @@ export type UserFormField = 'email' | 'firstName' | 'lastName' | 'phone' | 'role
 export type UserFormErrors = Partial<Record<UserFormField, string>>;
 
 /** What the user typed. Everything is text, as in the inputs; `roleId` is the id chosen in the dropdown. */
-export interface UserFormValues {
+export type UserFormValues = {
   email: string;
   firstName: string;
   lastName: string;
   phone: string;
   roleId: string;
   password: string;
-}
+};
 
 export const EMPTY_USER_FORM: UserFormValues = { email: '', firstName: '', lastName: '', phone: '', roleId: '', password: '' };
 
