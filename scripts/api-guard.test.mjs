@@ -1,6 +1,6 @@
 // Deny by default for api/: every route declares a guard, the declared permissions are real, the route table
 // is the one the authentication brief approved, and a role x endpoint matrix shows who gets what.
-// Works on the real route files (read as text) and the real guard code, with a fake database.
+// The matrix here uses the real guard with a stub handler; scripts/api-routes-real.test.mjs calls the real route files and handlers.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fakeRes, fakeSql } from '../api/_fakeSql.js';
