@@ -19,6 +19,7 @@ const EXPECTED = {
   '/api/users': { kind: 'protect', permission: 'can_view_user' },
   '/api/roles': { kind: 'protect', permission: 'can_view_user' },
   '/api/users/create': { kind: 'protect', permission: 'can_create_user' },
+  '/api/users/edit': { kind: 'protect', permission: 'can_edit_user' },
 };
 
 test('every route in api/ declares a guard (protect, authenticated or publicRoute)', () => {

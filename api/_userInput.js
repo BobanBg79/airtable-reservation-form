@@ -69,3 +69,38 @@ export function validateNewUser(body) {
     value: Object.fromEntries(Object.entries(checks).map(([name, c]) => [name, c.value])),
   };
 }
+
+const has = (input, key) => Object.prototype.hasOwnProperty.call(input, key) && input[key] !== undefined;
+
+/**
+ * The body of POST /api/users/edit: { id, ...fields to change }. Only the fields that are present are changed:
+ * firstName, lastName, phone (empty or null clears it), roleId, isActive (a boolean) and password (missing, null
+ * or empty means "keep the current one"). The email is never changed. Returns { value, fields }: `fields` maps
+ * a field name to its message (empty when everything is fine), `value` is { id, changes } when it is.
+ */
+export function validateUserEdit(body) {
+  const input = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+  const fields = {};
+  const changes = {};
+
+  const id = typeof input.id === 'number' && Number.isInteger(input.id) ? String(input.id) : text(input.id);
+  if (!ID_PATTERN.test(id)) fields.id = 'Invalid user id.';
+
+  if (has(input, 'email')) fields.email = 'The email cannot be changed.';
+
+  const apply = (name, check) => {
+    if (!has(input, name)) return;
+    const c = check(input[name]);
+    if (c.error) fields[name] = c.error;
+    else changes[name] = c.value;
+  };
+  apply('firstName', (v) => checkName(v, 'First name'));
+  apply('lastName', (v) => checkName(v, 'Last name'));
+  apply('phone', checkPhone);
+  apply('roleId', checkRoleId);
+  apply('isActive', (v) => (typeof v === 'boolean' ? { value: v } : { error: 'Active must be true or false.' }));
+  if (has(input, 'password') && input.password !== null && input.password !== '') apply('password', checkPassword);
+
+  if (Object.keys(fields).length) return { fields };
+  return { fields, value: { id, changes } };
+}

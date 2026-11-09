@@ -96,9 +96,15 @@ const CALLS = {
       method: 'POST',
       body: { email: 'new@example.com', firstName: 'New', lastName: 'User', phone: '', roleId: '2', password: 'Correct-horse-9battery' },
     },
-    status: 201,
     check: (body) => {
       assert.equal(body.email, 'owner@example.com'); // the fake database answers the read-back with its one user
+      assert.doesNotMatch(JSON.stringify(body), /password|\$2b/i);
+    },
+  },
+  '/api/users/edit': {
+    request: { method: 'POST', body: { id: '9', firstName: 'Changed', password: 'New-password-77!' } },
+    check: (body) => {
+      assert.equal(body.email, 'owner@example.com');
       assert.doesNotMatch(JSON.stringify(body), /password|\$2b/i);
     },
   },
@@ -117,6 +123,7 @@ const EXPECTED_STATUS = {
   '/api/users': ONLY_ADMIN,
   '/api/roles': ONLY_ADMIN,
   '/api/users/create': { ...ONLY_ADMIN, admin: 201 },
+  '/api/users/edit': ONLY_ADMIN,
 };
 
 // How many permissions /api/auth/me must report for each role (the initial sets of ADR 0007), written out.

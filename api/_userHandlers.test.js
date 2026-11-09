@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fakeRes, fakeSql } from './_fakeSql.js';
-import { handleCreateUser } from './_userHandlers.js';
+import { verifyPassword } from './_password.js';
+import { handleCreateUser, handleEditUser } from './_userHandlers.js';
 
 const auth = { sessionId: '11', user: { id: '5' }, permissions: ['can_create_user'] };
 const body = {
@@ -119,4 +120,132 @@ test('create: only POST', async () => {
   const res = await run(body, db(), 'GET');
   assert.equal(res.statusCode, 405);
   assert.equal(res.headers.Allow, 'POST');
+});
+
+// ---- edit ----
+
+// A database with user 9 (role 2) to edit. `batches` records how many queries each transaction carried.
+function editDb({ target = [{ id: '9', role_id: '2' }], role = [{ id: '3' }] } = {}) {
+  const sql = fakeSql([
+    ['as role_id', target],
+    ['from roles where id', role],
+    ['join roles r on r.id = u.role_id', [userRow]],
+  ]);
+  const batches = [];
+  const original = sql.transaction;
+  sql.transaction = async (queries) => {
+    batches.push(queries.length);
+    return original(queries);
+  };
+  sql.batches = batches;
+  return sql;
+}
+
+async function edit(requestBody, sql = editDb(), method = 'POST') {
+  const res = fakeRes();
+  await handleEditUser({ method, body: requestBody }, res, { sql, auth });
+  return res;
+}
+
+test('edit: changes only the fields sent, records the admin in updated_by and answers with the user', async () => {
+  const sql = editDb();
+  const res = await edit({ id: '9', firstName: 'Anka', phone: '+381601234567' }, sql);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.email, 'ana@example.com');
+  const [update] = sql.callsTo('update users set');
+  assert.equal(update.text, 'update users set first_name = $1, phone = $2, updated_by = $3::bigint where id = $4::bigint');
+  assert.deepEqual(update.params, ['Anka', '+381601234567', '5', '9']);
+  assert.doesNotMatch(update.text, /password_hash|is_active|role_id|email/);
+  assert.equal(sql.callsTo('update sessions').length, 0, 'a name change does not end the sessions');
+});
+
+test('edit: an empty phone clears it, and a new role is checked and set as a bigint', async () => {
+  const sql = editDb();
+  const res = await edit({ id: '9', phone: '', roleId: '3' }, sql);
+  assert.equal(res.statusCode, 200);
+  const [update] = sql.callsTo('update users set');
+  assert.equal(update.text, 'update users set phone = $1, role_id = $2::bigint, updated_by = $3::bigint where id = $4::bigint');
+  assert.deepEqual(update.params, [null, '3', '5', '9']);
+});
+
+test('edit: a new password is hashed, never returned, and ends all sessions of that user in the SAME transaction', async () => {
+  const sql = editDb();
+  const res = await edit({ id: '9', password: 'New-password-77!' }, sql);
+  assert.equal(res.statusCode, 200);
+  const [update] = sql.callsTo('update users set');
+  assert.match(update.text, /password_hash = \$1/);
+  assert.match(update.params[0], /^\$2[aby]\$12\$/);
+  assert.equal(await verifyPassword('New-password-77!', update.params[0]), true);
+  assert.doesNotMatch(JSON.stringify(res.body), /password|\$2[aby]\$|New-password/i);
+  const [revoke] = sql.callsTo('update sessions set is_active = false');
+  assert.deepEqual(revoke.params, ['9', '5']);
+  assert.deepEqual(sql.batches, [2], 'the update and the revocation are one transaction');
+});
+
+test('edit: deactivating ends the sessions; activating again, or any other change, does not', async () => {
+  const off = editDb();
+  assert.equal((await edit({ id: '9', isActive: false }, off)).statusCode, 200);
+  assert.equal(off.callsTo('update sessions set is_active = false').length, 1);
+  assert.deepEqual(off.batches, [2]);
+
+  const on = editDb();
+  assert.equal((await edit({ id: '9', isActive: true }, on)).statusCode, 200);
+  assert.equal(on.callsTo('update sessions').length, 0);
+  assert.deepEqual(on.batches, [1]);
+});
+
+test('edit: the admin cannot deactivate their own account: 403 and nothing is written', async () => {
+  const sql = editDb({ target: [{ id: '5', role_id: '1' }] });
+  const res = await edit({ id: '5', isActive: false }, sql);
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.fields.isActive, 'You cannot deactivate your own account.');
+  assert.equal(sql.callsTo('update').length, 0);
+});
+
+test('edit: the admin cannot change their own role: 403 and nothing is written; the same role is fine', async () => {
+  const sql = editDb({ target: [{ id: '5', role_id: '1' }] });
+  const res = await edit({ id: '5', roleId: '2' }, sql);
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.fields.roleId, 'You cannot change your own role.');
+  assert.equal(sql.callsTo('update').length, 0);
+
+  const same = editDb({ target: [{ id: '5', role_id: '1' }], role: [{ id: '1' }] });
+  assert.equal((await edit({ id: '5', roleId: '1', firstName: 'Ana' }, same)).statusCode, 200);
+});
+
+test('edit: the admin can change their own name and password, and can deactivate or re-role ANOTHER admin', async () => {
+  assert.equal((await edit({ id: '5', firstName: 'Ana' }, editDb({ target: [{ id: '5', role_id: '1' }] }))).statusCode, 200);
+  assert.equal((await edit({ id: '5', password: 'New-password-77!' }, editDb({ target: [{ id: '5', role_id: '1' }] }))).statusCode, 200);
+  assert.equal((await edit({ id: '9', isActive: false, roleId: '3' }, editDb({ target: [{ id: '9', role_id: '1' }] }))).statusCode, 200);
+});
+
+test('edit: unknown user is 404, unknown role is 400, bad input is 400, an empty change is 400; none of them write', async () => {
+  const missing = editDb({ target: [] });
+  assert.equal((await edit({ id: '99', firstName: 'Ana' }, missing)).statusCode, 404);
+  assert.equal(missing.callsTo('update').length, 0);
+
+  const noRole = editDb({ role: [] });
+  const r = await edit({ id: '9', roleId: '77' }, noRole);
+  assert.equal(r.statusCode, 400);
+  assert.deepEqual(r.body.fields, { roleId: 'Choose an existing role.' });
+  assert.equal(noRole.callsTo('update').length, 0);
+
+  const bad = editDb();
+  const b = await edit({ id: '9', email: 'x@y.co', password: 'short' }, bad);
+  assert.equal(b.statusCode, 400);
+  assert.deepEqual(Object.keys(b.body.fields).sort(), ['email', 'password']);
+  assert.equal(bad.calls.length, 0, 'validation happens before any query');
+
+  const nothing = await edit({ id: '9' });
+  assert.equal(nothing.statusCode, 400);
+  assert.deepEqual(nothing.body, { error: 'Nothing to change.' });
+});
+
+test('edit: a database failure is a generic 500 that never carries the password; only POST', async () => {
+  const failing = { query: async () => { throw new Error('boom Password-1234! postgres://u:secret@h'); } };
+  const res = await silently(() => edit({ id: '9', password: 'Password-1234!' }, failing));
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, { error: 'Could not update the user.' });
+  const get = await edit({ id: '9', firstName: 'Ana' }, editDb(), 'GET');
+  assert.equal(get.statusCode, 405);
 });
