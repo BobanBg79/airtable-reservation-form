@@ -331,3 +331,87 @@ describe('mapSessionResponse', () => {
     }
   });
 });
+
+describe('createApiClient: users and roles for the forms', () => {
+  const userDto = {
+    id: '9',
+    email: 'ana@example.com',
+    firstName: 'Ana',
+    lastName: 'Petrovic',
+    phone: null,
+    role: 'manager',
+    isActive: true,
+    lastLoginAt: null,
+    passwordHash: '$2b$12$leaked', // the server never sends it; the client must not carry it
+  };
+  const mappedUser = { id: '9', email: 'ana@example.com', firstName: 'Ana', lastName: 'Petrovic', phone: null, role: 'manager', isActive: true, lastLoginAt: null };
+
+  it('getUser asks for one user by id and maps it without anything extra', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, userDto));
+    const user = await createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'abc' }).getUser('9');
+    expect(fetch.mock.calls[0]![0]).toBe('https://example.com/api/users?id=9');
+    expect(user).toEqual(mappedUser);
+    expect(JSON.stringify(user)).not.toContain('leaked');
+  });
+
+  it('getUser: 404 is an ApiError, and an answer that is not a user is an ApiError too', async () => {
+    const missing = vi.fn<FetchLike>(async () => jsonResponse(404, { error: 'User not found.' }));
+    await expect(createApiClient({ baseUrl: '', fetch: missing, getToken: () => 'abc' }).getUser('99')).rejects.toMatchObject({ status: 404, message: 'User not found.' });
+    const odd = vi.fn<FetchLike>(async () => jsonResponse(200, { nonsense: true }));
+    await expect(createApiClient({ baseUrl: '', fetch: odd, getToken: () => 'abc' }).getUser('9')).rejects.toMatchObject({ status: 0 });
+  });
+
+  it('getRoles maps id and name and skips anything else', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, [{ id: '1', name: 'admin', description: 'x' }, { id: 2, name: 'bad' }, { id: '3', name: 'manager' }]));
+    const roles = await createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).getRoles();
+    expect(fetch.mock.calls[0]![0]).toBe('/api/roles');
+    expect(roles).toEqual([{ id: '1', name: 'admin' }, { id: '3', name: 'manager' }]);
+  });
+
+  it('createUser posts the request as JSON with the token and returns the new user', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(201, userDto));
+    const request = { email: 'ana@example.com', firstName: 'Ana', lastName: 'Petrovic', phone: null, roleId: '3', password: 'Correct-horse-9battery' };
+    const user = await createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'abc' }).createUser(request);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://example.com/api/users/create');
+    expect(init!.method).toBe('POST');
+    expect(init!.headers!.Authorization).toBe('Bearer abc');
+    expect(JSON.parse(init!.body!)).toEqual(request);
+    expect(user).toEqual(mappedUser);
+  });
+
+  it('updateUser posts to the edit route and returns the updated user', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, { ...userDto, firstName: 'Anka' }));
+    const user = await createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).updateUser({ id: '9', firstName: 'Anka' });
+    expect(fetch.mock.calls[0]![0]).toBe('/api/users/edit');
+    expect(JSON.parse(fetch.mock.calls[0]![1]!.body!)).toEqual({ id: '9', firstName: 'Anka' });
+    expect(user.firstName).toBe('Anka');
+  });
+
+  it('a rejected form carries the message per field on the ApiError (400, 409 and 403)', async () => {
+    const rejected = (status: number, body: unknown) => vi.fn<FetchLike>(async () => jsonResponse(status, body));
+    const request = { email: 'x', firstName: '', lastName: '', phone: null, roleId: '', password: '' };
+
+    const bad = await createApiClient({ baseUrl: '', fetch: rejected(400, { error: 'Please correct the highlighted fields.', fields: { email: 'Enter a valid email address.', password: 3 } }), getToken: () => 'abc' })
+      .createUser(request)
+      .catch((e: unknown) => e);
+    expect(bad).toBeInstanceOf(ApiError);
+    expect(bad).toMatchObject({ status: 400, message: 'Please correct the highlighted fields.', fields: { email: 'Enter a valid email address.' } }); // a non-text value is dropped
+
+    const taken = await createApiClient({ baseUrl: '', fetch: rejected(409, { error: 'A user with this email already exists.', fields: { email: 'This email is already in use.' } }), getToken: () => 'abc' })
+      .createUser(request)
+      .catch((e: unknown) => e);
+    expect(taken).toMatchObject({ status: 409, fields: { email: 'This email is already in use.' } });
+
+    const own = await createApiClient({ baseUrl: '', fetch: rejected(403, { error: 'You cannot change your own role.', fields: { roleId: 'You cannot change your own role.' } }), getToken: () => 'abc' })
+      .updateUser({ id: '5', roleId: '2' })
+      .catch((e: unknown) => e);
+    expect(own).toMatchObject({ status: 403, fields: { roleId: 'You cannot change your own role.' } });
+  });
+
+  it('an error without fields has no fields property content', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(500, { error: 'Could not create the user.' }));
+    const err = await createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).createUser({ email: 'a@b.co', firstName: 'A', lastName: 'B', phone: null, roleId: '1', password: 'x' }).catch((e: unknown) => e);
+    expect((err as ApiError).fields).toBeUndefined();
+  });
+});

@@ -5,8 +5,11 @@ import type {
   AuthSession,
   ISODate,
   LoginResult,
+  NewUserRequest,
   Reservation,
+  RoleOption,
   UserSummary,
+  UserUpdateRequest,
   YearMonth,
 } from '../models/types';
 
@@ -33,6 +36,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Messages per form field when the server rejected a form (400, 403, 409), e.g. { email: "..." }. */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -51,6 +56,14 @@ export interface ApiClient {
   getApartments(): Promise<ApartmentDetails[]>;
   /** The users with their role (never a password). */
   getUsers(): Promise<UserSummary[]>;
+  /** One user (the details screen); rejects with an ApiError, 404 when there is none. */
+  getUser(id: string): Promise<UserSummary>;
+  /** The active roles, for the role dropdown of the user forms. */
+  getRoles(): Promise<RoleOption[]>;
+  /** Adds a user. Rejects with an ApiError whose `fields` say what is wrong (400) or that the email is taken (409). */
+  createUser(user: NewUserRequest): Promise<UserSummary>;
+  /** Changes a user (only the fields sent). ApiError 403 for the admin's own deactivation or role. */
+  updateUser(update: UserUpdateRequest): Promise<UserSummary>;
   /** Signs in. Rejects with an ApiError: 401 "Invalid email or password", 429 too many attempts. */
   login(email: string, password: string): Promise<LoginResult>;
   /** The signed-in user and the CURRENT permissions (also refreshes the session expiry). */
@@ -174,6 +187,23 @@ export function mapUsersResponse(dto: unknown): UserSummary[] {
   return out;
 }
 
+/** One user from the server (details, create, edit), or an ApiError when the answer is not one. */
+export function mapUserResponse(dto: unknown): UserSummary {
+  const [user] = mapUsersResponse([dto]);
+  if (!user) throw new ApiError('The server sent an unexpected answer.', 0);
+  return user;
+}
+
+/** The roles, skipping any item that is not { id, name } with text values. */
+export function mapRolesResponse(dto: unknown): RoleOption[] {
+  if (!Array.isArray(dto)) return [];
+  const out: RoleOption[] = [];
+  for (const r of dto as Record<string, unknown>[]) {
+    if (r !== null && typeof r === 'object' && isString(r.id) && isString(r.name)) out.push({ id: r.id, name: r.name });
+  }
+  return out;
+}
+
 // ---- Wire format of POST /api/auth/login and GET /api/auth/me ----
 
 /** Maps a session response, or throws an ApiError when it is not one (a misbehaving server must never look signed in). */
@@ -194,14 +224,22 @@ export function mapSessionResponse(dto: unknown): AuthSession {
   throw new ApiError('The server sent an unexpected answer.', 0);
 }
 
-async function readError(res: { status: number; json(): Promise<unknown> }, fallback: string): Promise<string> {
+async function readError(
+  res: { status: number; json(): Promise<unknown> },
+  fallback: string,
+): Promise<{ message: string; fields?: Record<string, string> }> {
   try {
-    const body = (await res.json()) as { error?: unknown };
-    if (typeof body?.error === 'string') return body.error;
+    const body = (await res.json()) as { error?: unknown; fields?: unknown };
+    const message = typeof body?.error === 'string' ? body.error : fallback;
+    const fields: Record<string, string> = {};
+    if (body?.fields && typeof body.fields === 'object') {
+      for (const [name, text] of Object.entries(body.fields as Record<string, unknown>)) if (typeof text === 'string') fields[name] = text;
+    }
+    return Object.keys(fields).length ? { message, fields } : { message };
   } catch {
     /* non-JSON body */
   }
-  return fallback;
+  return { message: fallback };
 }
 
 export function createApiClient({ baseUrl, fetch: fetchImpl, getToken, onUnauthorized }: ApiClientOptions): ApiClient {
@@ -232,7 +270,8 @@ export function createApiClient({ baseUrl, fetch: fetchImpl, getToken, onUnautho
     }
     if (!res.ok) {
       if (res.status === 401 && token) onUnauthorized?.();
-      throw new ApiError(await readError(res, fallbackError), res.status);
+      const { message, fields } = await readError(res, fallbackError);
+      throw new ApiError(message, res.status, fields);
     }
     return res.json();
   }
@@ -247,6 +286,18 @@ export function createApiClient({ baseUrl, fetch: fetchImpl, getToken, onUnautho
     },
     async getUsers() {
       return mapUsersResponse(await request('GET', '/api/users', 'Could not load users.'));
+    },
+    async getUser(id) {
+      return mapUserResponse(await request('GET', `/api/users?id=${encodeURIComponent(id)}`, 'Could not load the user.'));
+    },
+    async getRoles() {
+      return mapRolesResponse(await request('GET', '/api/roles', 'Could not load roles.'));
+    },
+    async createUser(user) {
+      return mapUserResponse(await request('POST', '/api/users/create', 'Could not create the user.', user));
+    },
+    async updateUser(update) {
+      return mapUserResponse(await request('POST', '/api/users/edit', 'Could not update the user.', update));
     },
     async login(email, password) {
       const dto = (await request('POST', '/api/auth/login', 'Could not sign in.', { email, password }, { withToken: false })) as { token?: unknown };

@@ -55,6 +55,34 @@ export interface UserSummary {
   lastLoginAt: string | null;
 }
 
+/** A role for the dropdown of the user forms, from GET /api/roles. */
+export interface RoleOption {
+  id: string;
+  name: string;
+}
+
+/** The body of POST /api/users/create (the server checks it again). */
+export interface NewUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  roleId: string;
+  password: string;
+}
+
+/** The body of POST /api/users/edit: the id, and only the fields that change. The email never does. */
+export interface UserUpdateRequest {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+  roleId?: string;
+  isActive?: boolean;
+  /** A new password; leave it out to keep the current one. */
+  password?: string;
+}
+
 /** The signed-in user, as the server describes them after login and from /api/auth/me. */
 export interface AuthUser {
   id: string;
