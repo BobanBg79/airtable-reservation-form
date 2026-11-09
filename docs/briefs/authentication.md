@@ -19,7 +19,7 @@ Approved by the owner on 2026-11-08. Work on the branch `feature/authentication`
 - **Database session token, not JWT.** Permission changes and deactivation take effect immediately (ADR 0007).
 - At login the server generates a random 32-byte token and stores only its SHA-256 hash in a `sessions` table, with the user and the expiry.
 - The app sends `Authorization: Bearer <token>`; mobile keeps it in SecureStore (Android Keystore / iOS Keychain).
-- **Expiry: sliding 30 days, hard cap 90 days from login.** Each authenticated request moves the expiry to now + 30 days (in the same query that checks the session), but never past login + 90 days. Then a new login is required.
+- **Expiry: sliding 7 days, hard cap 90 days from login.** Each authenticated request moves the expiry to now + 7 days (in the same query that checks the session), but never past login + 90 days. Then a new login is required.
 - Logout sets `is_active = false`; nothing is deleted, and `sessions` gets the DELETE and TRUNCATE triggers.
 
 ## New tables
@@ -31,7 +31,7 @@ Approved by the owner on 2026-11-08. Work on the branch `feature/authentication`
 | `id` | bigint identity | |
 | `user_id` | bigint, FK `users`, not null | |
 | `token_hash` | text, unique, not null | SHA-256 of the token; the token itself is never stored |
-| `expires_at` | timestamptz, not null | sliding: now + 30 days on each use |
+| `expires_at` | timestamptz, not null | sliding: now + 7 days on each use |
 | `max_expires_at` | timestamptz, not null | login + 90 days; `expires_at` never goes past it |
 | `last_used_at` | timestamptz | |
 | `is_active` | boolean, default true | false on logout or revocation |

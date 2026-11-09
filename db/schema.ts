@@ -223,7 +223,7 @@ export const users = pgTable(
 // ---------------------------------------------------------------------------------------------
 
 // A login session. Only the SHA-256 hash of the token is stored; the token itself never is. The expiry
-// slides (now + 30 days on each authenticated request) but never passes `max_expires_at` (login + 90 days).
+// slides (now + 7 days on each authenticated request) but never passes `max_expires_at` (login + 90 days).
 // Logout or revocation sets `is_active = false`; rows are never deleted. `created_by` is the session's own
 // user, `updated_by` is the admin when the admin revokes it.
 export const sessions = pgTable(

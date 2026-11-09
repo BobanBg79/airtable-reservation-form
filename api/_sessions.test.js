@@ -14,8 +14,8 @@ import {
   sessionPayload,
 } from './_sessions.js';
 
-test('the sliding window is 30 days and the hard cap 90 days', () => {
-  assert.equal(SLIDING_DAYS, 30);
+test('the sliding window is 7 days and the hard cap 90 days', () => {
+  assert.equal(SLIDING_DAYS, 7);
   assert.equal(MAX_DAYS, 90);
 });
 
@@ -39,13 +39,13 @@ test('bearerToken reads only a well-formed Authorization: Bearer header', () => 
   assert.equal(bearerToken({}), null);
 });
 
-test('createSessionQuery stores the hash, never the token, with 30 and 90 day limits', async () => {
+test('createSessionQuery stores the hash, never the token, with 7 and 90 day limits', async () => {
   const sql = fakeSql();
   const { token, tokenHash } = generateToken();
   await createSessionQuery(sql, '5', tokenHash);
   const { text, params } = sql.calls[0];
   assert.match(text, /insert into sessions/);
-  assert.deepEqual(params, ['5', tokenHash, 30, 90]);
+  assert.deepEqual(params, ['5', tokenHash, 7, 90]);
   assert.ok(!params.includes(token), 'the token itself is never sent to the database');
   assert.match(text, /created_by, updated_by\)\s+values \(\$1::bigint/); // the session's own user
 });
@@ -72,7 +72,7 @@ test('resolveSession returns the session, user and permissions, and looks the to
     user: { id: '5', email: 'owner@example.com', firstName: 'Ana', lastName: 'Petrovic', role: 'admin' },
     permissions: ['can_view_user', 'can_view_apartment'],
   });
-  assert.deepEqual(sql.calls[0].params, [hashToken(token), 30]);
+  assert.deepEqual(sql.calls[0].params, [hashToken(token), 7]);
   assert.ok(!JSON.stringify(sql.calls[0].params).includes(token));
 });
 

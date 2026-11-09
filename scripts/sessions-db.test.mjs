@@ -49,7 +49,7 @@ after(async () => {
   if (created.length) await sql.query('update sessions set is_active = false where id = any($1::bigint[])', [created]);
 });
 
-test('a valid session is returned with the user and all 19 admin permissions, and the expiry slides to ~30 days', opts, async () => {
+test('a valid session is returned with the user and all 19 admin permissions, and the expiry slides to ~7 days', opts, async () => {
   const { token, id } = await insertSession(await admin(), { expiresIn: DAY, maxIn: 90 * DAY });
   const session = await resolveSession(sql, token);
 
@@ -59,7 +59,7 @@ test('a valid session is returned with the user and all 19 admin permissions, an
 
   const row = await stored(id);
   const days = (new Date(row.expires_at) - Date.now()) / 1000 / DAY;
-  assert.ok(days > 29.99 && days < 30.01, `expires in ${days} days`);
+  assert.ok(days > 6.99 && days < 7.01, `expires in ${days} days`);
   assert.ok(row.last_used_at, 'last_used_at is set');
 });
 

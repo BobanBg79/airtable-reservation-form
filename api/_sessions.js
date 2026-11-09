@@ -2,11 +2,11 @@
 //
 // A session is a random 32-byte token. Only its SHA-256 hash is stored (`sessions.token_hash`); the token
 // itself goes to the client once, at login. The expiry slides: every authenticated request moves it to
-// now + 30 days, but never past `max_expires_at` (login + 90 days). Logout sets is_active = false; nothing
+// now + 7 days, but never past `max_expires_at` (login + 90 days). Logout sets is_active = false; nothing
 // is deleted. Pure functions, the SQL client is passed in so tests can use a fake one.
 import { createHash, randomBytes } from 'node:crypto';
 
-export const SLIDING_DAYS = 30;
+export const SLIDING_DAYS = 7;
 export const MAX_DAYS = 90;
 
 /** A new random token and the hash that is stored for it. */
