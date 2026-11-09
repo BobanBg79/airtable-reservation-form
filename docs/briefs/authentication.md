@@ -79,7 +79,7 @@ On every later request:
 | Route | Rule |
 | --- | --- |
 | `POST /api/auth/login` | public |
-| `GET /api/auth/me`, `POST /api/auth/logout` | logged in |
+| `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/logout-all` | logged in (logout-all was added later, 2026-11-09, see ADR 0008) |
 | `/api/calendar` | `can_view_reservation` |
 | `/api/apartments` | `can_view_apartment` |
 | `/api/users` | `can_view_user` |

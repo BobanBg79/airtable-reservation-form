@@ -19,6 +19,8 @@ Suggested order (the owner decides): 1. Subtasks 5 and 6 of the users task (user
 
 **Authentication (done, ADR 0008):** login, sessions, the deny-by-default guard, field filtering and the app screens, one commit each on `feature/authentication`.
 
+**Authentication follow-ups:** (a) add `revokeUserSessions` / logout-all to the opt-in real-SQL test `scripts/sessions-db.test.mjs` (today they are tested with the fake client only); (b) a device list and a per-device sign-out are not planned (ADR 0008, "No device list"); (c) revisit the login limits (5 / 30 per 15 minutes) after real use.
+
 **Acceptance.** Migrations apply on `dev` only and never delete rows, drop tables or columns, or drop or disable triggers; no DELETE or TRUNCATE works for any role; the database and the code permission lists match (test); `/api/users` never contains a password hash; `npm run typecheck` and `npm test` pass.
 
 ### Task: Apartment details, edit mode
