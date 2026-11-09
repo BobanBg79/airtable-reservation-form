@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { INITIAL_ROLE_PERMISSIONS } from '../packages/core/src/models/permissions.ts';
-import { handleApartments, handleCalendar, handleUsers } from './_dataHandlers.js';
+import { handleApartments, handleCalendar, handleRoles, handleUsers } from './_dataHandlers.js';
 import { fakeRes } from './_fakeSql.js';
 
 const apartmentRow = {
@@ -127,4 +127,44 @@ test('users: a database failure is a generic 500', async () => {
   await silently(() => handleUsers({}, res, { sql: failing }));
   assert.equal(res.statusCode, 500);
   assert.deepEqual(res.body, { error: 'Could not load users.' });
+});
+
+test('users?id: one user, never a password or hash', async () => {
+  const row = {
+    id: '5', email: 'owner@example.com', first_name: 'Ana', last_name: 'P', phone: null, role: 'admin',
+    is_active: true, last_login_at: null, password_hash: '$2b$12$secret',
+  };
+  const res = fakeRes();
+  await handleUsers({ query: { id: '5' } }, res, { sql: db([row]) });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.email, 'owner@example.com');
+  assert.doesNotMatch(JSON.stringify(res.body), /password|secret|\$2b/i);
+});
+
+test('users?id: 404 when there is no such user, 400 for an id that is not a number', async () => {
+  const missing = fakeRes();
+  await handleUsers({ query: { id: '99' } }, missing, { sql: db([]) });
+  assert.equal(missing.statusCode, 404);
+  assert.deepEqual(missing.body, { error: 'User not found.' });
+  for (const bad of ['abc', '0', '-1', '5; drop table users', '1'.repeat(30), '']) {
+    const res = fakeRes();
+    await handleUsers({ query: { id: bad } }, res, { sql: db([]) });
+    assert.equal(res.statusCode, 400, JSON.stringify(bad));
+  }
+});
+
+// ---- /api/roles ----
+
+test('roles: returns id and name of the active roles', async () => {
+  const res = fakeRes();
+  await handleRoles({}, res, { sql: db([{ id: '1', name: 'admin' }, { id: '2', name: 'manager' }]) });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, [{ id: '1', name: 'admin' }, { id: '2', name: 'manager' }]);
+});
+
+test('roles: a database failure is a generic 500', async () => {
+  const res = fakeRes();
+  await silently(() => handleRoles({}, res, { sql: failing }));
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, { error: 'Could not load roles.' });
 });

@@ -67,7 +67,31 @@ export async function loadUsers(sql) {
       where u.email not like '%@system.local'
       order by lower(u.first_name), lower(u.last_name), u.id`,
   );
-  return rows.map((r) => ({
+  return rows.map(mapUserRow);
+}
+
+/** One user (the details screen), the same fields as loadUsers and never a password hash; null when there is none. */
+export async function loadUser(sql, id) {
+  const rows = await sql.query(
+    `select u.id::text as id, u.email, u.first_name, u.last_name, u.phone, r.name as role,
+            u.is_active, u.last_login_at
+       from users u
+       join roles r on r.id = u.role_id
+      where u.id = $1::bigint
+        and u.email not like '%@system.local'`,
+    [id],
+  );
+  return rows.length ? mapUserRow(rows[0]) : null;
+}
+
+/** The active roles, for the role dropdown of the user forms. */
+export async function loadRoles(sql) {
+  const rows = await sql.query('select id::text as id, name from roles where is_active order by id');
+  return rows.map((r) => ({ id: r.id, name: r.name }));
+}
+
+function mapUserRow(r) {
+  return {
     id: r.id,
     email: r.email,
     firstName: r.first_name,
@@ -76,7 +100,7 @@ export async function loadUsers(sql) {
     role: r.role,
     isActive: r.is_active,
     lastLoginAt: r.last_login_at ? new Date(r.last_login_at).toISOString() : null,
-  }));
+  };
 }
 
 /**

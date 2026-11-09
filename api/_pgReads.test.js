@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { apartmentFieldAccess, loadApartmentDetails, loadApartments, loadCalendar, loadUsers } from './_pgReads.js';
+import { apartmentFieldAccess, loadApartmentDetails, loadApartments, loadCalendar, loadRoles, loadUser, loadUsers } from './_pgReads.js';
 import { PG_FREES_DATES } from './_status.js';
 
 // A fake SQL client: records every query and answers from a queue keyed by a fragment of the SQL.
@@ -192,4 +192,22 @@ test('loadUsers keeps inactive users but leaves out system users', async () => {
   const text = sql.calls[0].text;
   assert.doesNotMatch(text, /where[^;]*is_active/);
   assert.match(text, /not like '%@system\.local'/);
+});
+
+test('loadUser maps one row by id, never selects a password hash, and is null when there is none', async () => {
+  const sql = fakeSql({ 'from users u': [{ ...userRow, password_hash: '$2b$12$secret' }] });
+  const user = await loadUser(sql, '5');
+  assert.deepEqual(Object.keys(user).sort(), ['email', 'firstName', 'id', 'isActive', 'lastLoginAt', 'lastName', 'phone', 'role']);
+  assert.doesNotMatch(JSON.stringify(user), /password|secret|\$2b/i);
+  assert.doesNotMatch(sql.calls[0].text, /password/i);
+  assert.match(sql.calls[0].text, /u\.id = \$1::bigint/);
+  assert.match(sql.calls[0].text, /not like '%@system\.local'/);
+  assert.deepEqual(sql.calls[0].params, ['5']);
+  assert.equal(await loadUser(fakeSql({ 'from users u': [] }), '99'), null);
+});
+
+test('loadRoles returns the active roles as id and name', async () => {
+  const sql = fakeSql({ 'from roles': [{ id: '1', name: 'admin', description: 'x' }, { id: '2', name: 'manager' }] });
+  assert.deepEqual(await loadRoles(sql), [{ id: '1', name: 'admin' }, { id: '2', name: 'manager' }]);
+  assert.match(sql.calls[0].text, /where is_active/);
 });
