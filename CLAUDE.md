@@ -133,7 +133,7 @@ Everything below is on `main` (commit and push only on request).
 - Monorepo with `packages/core` (models, dates, overlap, validation, API client, formatting; Vitest) and `apps/mobile` (Expo SDK 58).
 - Neon PostgreSQL with Drizzle migrations, the roles and safety guards (ADRs 0001 to 0005), a dev seed (9 apartments, 25 reservations), and the API reading from Neon. Vercel Production uses the dev branch for now (ADR 0005).
 - Mobile app: the multi-calendar (frozen header and apartment column, today and weekends, bars, details dialog, auto-refresh), bottom tabs, the apartments list and read-only apartment details, tapping a name in the calendar opens details (ADR 0006).
-- Tooling: the `phone-preview` skill, `npm run dev:api`, `npm run check:env`, `npm test` (core, `api/`, `scripts/`), `npm run typecheck` and `npm run lint` (ESLint: Expo's config for `apps/mobile`, `@eslint/js` + typescript-eslint for the rest; run it, with typecheck and tests, before calling a task done).
+- Tooling: the `phone-preview` skill, `npm run dev:api`, `npm run check:env`, `npm test` (core, `api/`, `scripts/`; offline: no database, no network), `npm run test:db` (on purpose: read-only checks of the real dev database, `scripts/*.dbtest.mjs`; with `RUN_SESSION_DB_TESTS=1` it also writes inactive session rows), `npm run typecheck` and `npm run lint` (ESLint: Expo's config for `apps/mobile`, `@eslint/js` + typescript-eslint for the rest; run it, with typecheck and tests, before calling a task done).
 
 **Where to start a new session**
 1. `git checkout main && git pull origin main`, then a new feature branch from `main`.

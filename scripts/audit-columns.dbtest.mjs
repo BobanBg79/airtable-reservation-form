@@ -1,24 +1,19 @@
-// Checks on the dev database that created_by / updated_by are foreign keys to users everywhere
-// (migration 0005, ADR 0007) and that the dev-seed system user cannot sign in. Skipped when the
-// database is not reachable. Reads as delta_app (SELECT only).
+// Checks on the real dev database (not part of `npm test`; run it on purpose with `npm run test:db`) that
+// created_by / updated_by are foreign keys to users everywhere (migration 0005, ADR 0007) and that the dev-seed
+// system user cannot sign in. Reads as delta_app (SELECT only). The same rule is checked on db/schema.ts
+// without a database in scripts/schema.test.mjs.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { neon } from '@neondatabase/serverless';
 import { loadEnvLocal } from './load-env-local.mjs';
 import { SEED_USER_EMAIL } from './seed-data.mjs';
 
+// `npm run test:db` is run on purpose, so an unreachable database is a failure, not a skip.
 const env = loadEnvLocal();
-const sql = env?.DATABASE_URL ? neon(env.DATABASE_URL) : null;
-let reachable = false;
-if (sql) {
-  try {
-    await sql.query('select 1');
-    reachable = true;
-  } catch {
-    reachable = false;
-  }
-}
-const dbTest = (name, fn) => test(name, { skip: reachable ? false : 'dev database not reachable' }, fn);
+if (!env?.DATABASE_URL) throw new Error('.env.local with DATABASE_URL (role delta_app, branch dev) is needed for test:db.');
+const sql = neon(env.DATABASE_URL);
+await sql.query('select 1');
+const dbTest = test;
 
 // login_attempts is the one exception to the audit columns (ADR 0004 exception, authentication brief).
 const TABLES = ['apartments', 'reservations', 'users', 'roles', 'permissions', 'role_permissions', 'sessions'];

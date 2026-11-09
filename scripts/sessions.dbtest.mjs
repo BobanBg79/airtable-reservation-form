@@ -3,7 +3,7 @@
 // (sessions can never be deleted, so each run leaves a few inactive session rows of the first admin). That is
 // why it is opt-in:
 //
-//   RUN_SESSION_DB_TESTS=1 npm run test:scripts
+//   RUN_SESSION_DB_TESTS=1 npm run test:db
 //
 // Runs as delta_app (INSERT and UPDATE on sessions). Sessions it creates are deactivated at the end.
 import assert from 'node:assert/strict';

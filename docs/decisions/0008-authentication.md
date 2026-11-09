@@ -48,7 +48,7 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 - **No device list.** A stolen token works until the owner of the account signs out (this device or all devices), an admin revokes it, the user is deactivated, or it expires. The user cannot see which devices are signed in. Calling `revokeUserSessions` when the admin deactivates a user or sets a new password is part of subtask 5 of the users brief (`TODO.md`); the function exists, the endpoint that calls it does not yet.
 - The deployed app and API must move together: once this is on `main`, an older build of the app, which sends no token, gets 401 everywhere. Only the owner uses the app, so this is acceptable, but it is why the push to `main` needs the owner's explicit OK.
 - Vercel Production still reads the Neon `dev` branch (ADR 0005); real data still must not be entered until the production branch exists.
-- The real SQL of the session (slide, cap, expired, inactive, revoked) cannot be checked with a fake client, so `scripts/sessions-db.test.mjs` runs it on the dev branch. It writes (inactive) session rows that can never be deleted, so it is opt-in: `RUN_SESSION_DB_TESTS=1 npm run test:scripts`.
+- The real SQL of the session (slide, cap, expired, inactive, revoked) cannot be checked with a fake client, so `scripts/sessions.dbtest.mjs` runs it on the dev branch. It writes (inactive) session rows that can never be deleted, so it is opt-in: `RUN_SESSION_DB_TESTS=1 npm run test:scripts`.
 
 ## Out of scope / open
 

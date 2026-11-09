@@ -12,6 +12,7 @@
     "test": "npm run test --workspaces --if-present && npm run test:api && npm run test:scripts",
     "test:api": "node --test \"api/**/*.test.js\"",
     "test:scripts": "node --experimental-test-module-mocks --test \"scripts/**/*.test.mjs\"",
+    "test:db": "node --test \"scripts/**/*.dbtest.mjs\"",
     "check:env": "node scripts/check-dev-env.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "npm run check:env && drizzle-kit migrate",
