@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@delta/core": "*",
+    "@delta/react-bindings": "*",
     "@expo/metro-runtime": "~58.0.17",
     "@expo/vector-icons": "^15.0.2",
     "expo": "~58.0.23",
