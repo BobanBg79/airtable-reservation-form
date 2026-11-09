@@ -39,6 +39,8 @@ function RootNavigator({ backgroundColor }: { backgroundColor: string }) {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="apartment/[id]" />
+          <Stack.Screen name="user/new" />
+          <Stack.Screen name="user/[id]" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="login" />

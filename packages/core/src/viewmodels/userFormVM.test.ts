@@ -35,6 +35,7 @@ describe('Add user', () => {
     expect(s.mode).toBe('create');
     expect(s.required).toEqual({ email: true, firstName: true, lastName: true, phone: false, roleId: true, password: true, isActive: false });
     expect(s.canSave).toBe(false);
+    expect(s.visible.isActive).toBe(false); // a new user is always active
   });
 
   it('Save turns on when email, names, role and password are filled, and the message on blur is the field message', () => {

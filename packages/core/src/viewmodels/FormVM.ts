@@ -30,6 +30,8 @@ export interface FieldRule<V extends FormValues> {
   editableInEdit?: boolean;
   /** False for a field that is not shown in the read-only view (the password). Default true. */
   showInView?: boolean;
+  /** False for a field that is not shown on a blank create form (the "active" switch). Default true. */
+  showInCreate?: boolean;
 }
 
 export interface FormDefinition<V extends FormValues, S> {
@@ -246,7 +248,7 @@ export class FormVM<V extends FormValues, S> {
       const fieldRule = this.definition.fields[field];
       required[field] = fieldRule.required[rule];
       editable[field] = this.editableNow(field);
-      visible[field] = this.mode !== 'view' || fieldRule.showInView !== false;
+      visible[field] = this.mode === 'view' ? fieldRule.showInView !== false : this.mode === 'create' ? fieldRule.showInCreate !== false : true;
       if (editable[field] && required[field] && !this.isFilled(field)) requiredFilled = false;
       if (this.values[field] !== this.initial[field]) dirty = true;
     }

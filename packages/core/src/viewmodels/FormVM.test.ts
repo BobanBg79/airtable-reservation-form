@@ -249,6 +249,15 @@ describe('details and edit', () => {
     expect(create.getState()).toMatchObject({ mode: 'create', values: { name: '', note: '', code: '', active: true } });
   });
 
+  it('a blank create form hides a field that only makes sense later', () => {
+    const def = definition();
+    def.fields.active = { ...def.fields.active, showInCreate: false };
+    const form = new FormVM<PetForm, Pet>({ definition: def, canEdit: true });
+    expect(form.getState().visible).toEqual({ name: true, note: true, code: true, active: false });
+    const details = new FormVM<PetForm, Pet>({ definition: def, saved, canEdit: true });
+    expect(details.getState().visible.active).toBe(true);
+  });
+
   it('the read-only view hides a field that is not for display, and shows it again while editing', () => {
     const def = definition();
     def.fields.note = { ...def.fields.note, showInView: false };

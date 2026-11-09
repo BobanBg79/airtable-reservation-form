@@ -35,9 +35,7 @@ export function useUsers() {
     void load('initial');
   }, [load]);
 
-  return {
-    ...state,
-    reload: () => void load('initial'),
-    refresh: () => void load('refresh'),
-  };
+  const reload = useCallback(() => void load('initial'), [load]);
+  const refresh = useCallback(() => void load('refresh'), [load]);
+  return { ...state, reload, refresh };
 }

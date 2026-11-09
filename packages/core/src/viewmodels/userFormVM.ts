@@ -31,7 +31,7 @@ export function userFormDefinition(api: UserFormApi, roles: readonly RoleOption[
       phone: textField('phone', { create: false, edit: false }),
       roleId: textField('roleId', { create: true, edit: true }),
       password: { ...textField('password', { create: true, edit: false }), showInView: false }, // never shown
-      isActive: { required: { create: false, edit: false } },
+      isActive: { required: { create: false, edit: false }, showInCreate: false }, // a new user is always active
     },
     empty: { ...EMPTY_USER_FORM, isActive: true },
     fromSaved: (user) => ({ ...userFormFromUser(user, roles), isActive: user.isActive }),

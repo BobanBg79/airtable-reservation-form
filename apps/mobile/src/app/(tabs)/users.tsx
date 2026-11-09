@@ -1,5 +1,7 @@
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { ActivityIndicator, Button, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, FAB, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NoAccess } from '../../components/NoAccess';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -8,7 +10,7 @@ import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
-// Users list. Needs can_view_user (admin only by default). Create and edit come later (TODO.md, subtask 5).
+// Users list. Needs can_view_user (admin only by default). A tap opens the details (with Edit); "Add user" needs can_create_user.
 export default function UsersScreen() {
   const { canOpen } = useAuth();
   return canOpen('users') ? <UsersContent /> : <NoAccess what="the users list" />;
@@ -16,7 +18,16 @@ export default function UsersScreen() {
 
 function UsersContent() {
   const theme = useTheme<AppTheme>();
+  const { can } = useAuth();
   const { users, loading, refreshing, error, reload, refresh } = useUsers();
+  // Back from a user screen (after adding or editing): refresh the list quietly. Not on the first visit, which loads it.
+  const seen = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (seen.current) refresh();
+      seen.current = true;
+    }, [refresh]),
+  );
   const { width } = useWindowDimensions();
   const columns = width >= 600 ? 2 : 1; // two columns on wide screens (a phone in landscape)
 
@@ -44,7 +55,7 @@ function UsersContent() {
           }
           renderItem={({ item }) => (
             <View style={s.cell}>
-              <UserCard user={item} />
+              <UserCard user={item} onPress={() => router.push(`/user/${item.id}`)} />
             </View>
           )}
         />
@@ -60,6 +71,9 @@ function UsersContent() {
       ) : (
         <View style={s.center}>{loading && <ActivityIndicator size="large" />}</View>
       )}
+      {can('can_create_user') ? (
+        <FAB icon="account-plus-outline" label="Add user" style={s.fab} onPress={() => router.push('/user/new')} accessibilityLabel="Add user" />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -73,4 +87,5 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   errorText: { textAlign: 'center', marginBottom: 12 },
   empty: { textAlign: 'center', marginTop: 32 },
+  fab: { position: 'absolute', right: 16, bottom: 16 },
 });
