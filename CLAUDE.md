@@ -102,6 +102,13 @@ Owner uses **Windows** + VS Code and an Android phone on USB. For running the ap
 4. Android build on the phone: `npx expo run:android` (Android Studio SDK + adb). Shareable APK: `npx eas build -p android --profile preview`.
 5. iPhone native builds need a Mac or EAS + an Apple developer account; until then Expo Go.
 
+## Testing rules (owner's rule, no exceptions)
+- **Every test imports the real function (or the real route handler) and calls it.** Never copy, mimic or re-implement the behaviour under test inside a test file and then test that copy. A test that re-derives the answer with the same logic proves nothing.
+- **Expected values are literals, written out** (for example a spelled-out role x route table), not computed with logic that mirrors the implementation (no `allowed = permissions.includes(...)` in a test to decide what the guard should answer).
+- **Fakes are only for the outside world** (the database, the network, the clock) and must not contain the logic being tested. The fake SQL client answers queries; it does not decide.
+- Before a piece of test work is done, scan the new test files for helper code that duplicates production logic and remove it.
+- `npm test` is offline (no database, no network). Checks that need the real dev database live in `scripts/*.dbtest.mjs` and run with `npm run test:db`.
+
 ## Working style
 - Owner: Slobodan, senior frontend dev (Vue/TS daily, knows React). **Very short answers in chat**; he asks follow-up questions when something is unclear. Numbered steps, one at a time. Wants tangible results early. Chat is in Serbian (ekavica).
 - Commit and push only when the owner asks. He usually says "commit i push" when a piece of work is done; after a push, check that the production API still answers.

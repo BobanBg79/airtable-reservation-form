@@ -90,16 +90,6 @@ test('matrix: a token that does not resolve (unknown, expired, inactive session 
   }
 });
 
-for (const role of ROLES) {
-  test(`matrix: ${role} (${INITIAL_ROLE_PERMISSIONS[role].length} permissions) gets 200 or 403 per route`, async () => {
-    const granted = [...INITIAL_ROLE_PERMISSIONS[role]];
-    for (const { route, rule } of routes) {
-      const expected = rule.kind === 'protect' && !granted.includes(rule.permission) ? 403 : 200;
-      assert.equal(await statusFor(rule, granted), expected, `${role} on ${route}`);
-    }
-  });
-}
-
 test('matrix: the expected outcomes for the seeded roles, spelled out', async () => {
   const outcome = async (role, route) => statusFor(EXPECTED[route], [...INITIAL_ROLE_PERMISSIONS[role]]);
   // Users is admin only.

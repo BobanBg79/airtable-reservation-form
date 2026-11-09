@@ -1,7 +1,6 @@
 // The real route files, called for real: every role against every route in api/, through the real guard and the
 // real handler, with only the database replaced by a fake (api/_db.js is mocked, so nothing connects to Neon).
-// Who may call what is NOT written here: it is read from the route file itself (`route.guard`, set by protect /
-// authenticated / publicRoute), and scripts/api-guard.test.mjs pins that against the approved policy.
+// What each role must get is written out below as literals (EXPECTED_STATUS), never computed from the rules.
 // This test checks what the routes actually answer: 200 with the data, 403 when the permission is missing,
 // 401 without a session, and that a refused call never reaches the handler's queries.
 // Needs `node --experimental-test-module-mocks` (see the test:scripts script).
@@ -74,13 +73,12 @@ const CALLS = {
   },
   '/api/apartments': {
     request: { method: 'GET' },
-    check: (body, role) => {
+    // admin, business_owner and manager all have both the owner-contact and the rent permission by default
+    check: (body) => {
       assert.equal(body.length, 1);
       assert.equal(body[0].name, 'Egzotik');
-      // field filtering by the caller's permissions, done by the real handler
-      const perms = INITIAL_ROLE_PERMISSIONS[role];
-      assert.equal('ownerName' in body[0], perms.includes('can_view_apartment_owner_contact'), `${role}: ownerName`);
-      assert.equal('monthlyRentEur' in body[0], perms.includes('can_view_apartment_rent'), `${role}: monthlyRentEur`);
+      assert.equal(body[0].ownerName, 'Test Owner Four');
+      assert.equal(body[0].monthlyRentEur, 380);
     },
   },
   '/api/users': {
@@ -105,16 +103,32 @@ const CALLS = {
   },
 };
 
+// What every role must get from every route, spelled out (not computed). 403 = refused before the handler runs.
+const EVERYONE = { admin: 200, business_owner: 200, manager: 200, cleaning_lady: 200, handyman: 200 };
+const VIEWERS_OF_RESERVATIONS_AND_APARTMENTS = { admin: 200, business_owner: 200, manager: 200, cleaning_lady: 403, handyman: 403 };
+const ONLY_ADMIN = { admin: 200, business_owner: 403, manager: 403, cleaning_lady: 403, handyman: 403 };
+const EXPECTED_STATUS = {
+  '/api/auth/me': EVERYONE,
+  '/api/auth/logout': EVERYONE,
+  '/api/auth/logout-all': EVERYONE,
+  '/api/calendar': VIEWERS_OF_RESERVATIONS_AND_APARTMENTS,
+  '/api/apartments': VIEWERS_OF_RESERVATIONS_AND_APARTMENTS,
+  '/api/users': ONLY_ADMIN,
+  '/api/roles': ONLY_ADMIN,
+  '/api/users/create': { ...ONLY_ADMIN, admin: 201 },
+};
+
 const routes = listRoutes();
 
-test('every route file has a call defined here (a new route must be added on purpose)', () => {
+test('every route file has a call and expected statuses defined here (a new route must be added on purpose)', () => {
   assert.deepEqual(routes.map((r) => r.route).sort(), Object.keys(CALLS).sort());
+  assert.deepEqual(Object.keys(EXPECTED_STATUS).sort(), Object.keys(CALLS).filter((r) => r !== '/api/auth/login').sort());
 });
 
 for (const { file, route } of routes) {
   const handler = (await import(pathToFileURL(file).href)).default;
   const { guard } = handler;
-  const { request, check, status = 200 } = CALLS[route] ?? {};
+  const { request, check } = CALLS[route] ?? {};
 
   test(`${route}: declares its guard on the exported handler`, () => {
     assert.ok(guard && ['public', 'authenticated', 'protect'].includes(guard.kind), `${route} has no guard`);
@@ -136,16 +150,12 @@ for (const { file, route } of routes) {
   });
 
   for (const role of ROLES) {
-    const allowed = guard?.kind === 'authenticated' || INITIAL_ROLE_PERMISSIONS[role].includes(guard?.permission);
-    test(`${route}: ${role} gets ${allowed ? `${status} with the data` : '403 and the handler never runs'}`, async () => {
+    const expected = EXPECTED_STATUS[route][role];
+    test(`${route}: ${role} gets ${expected}${expected === 403 ? ' and the handler never runs' : ' with the data'}`, async () => {
       const { res, handlerQueries } = await call(handler, request, role);
-      if (allowed) {
-        assert.equal(res.statusCode, status);
-        check(res.body, role);
-      } else {
-        assert.equal(res.statusCode, 403);
-        assert.deepEqual(handlerQueries, [], 'a refused call must not reach the handler');
-      }
+      assert.equal(res.statusCode, expected);
+      if (expected === 403) assert.deepEqual(handlerQueries, [], 'a refused call must not reach the handler');
+      else check(res.body, role);
     });
   }
 }
