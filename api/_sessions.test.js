@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { fakeSql } from './_fakeSql.js';
 import {
@@ -25,7 +24,8 @@ test('generateToken makes a random 32-byte token and stores only its SHA-256 has
   const b = generateToken();
   assert.notEqual(a.token, b.token);
   assert.equal(Buffer.from(a.token, 'base64url').length, 32);
-  assert.equal(a.tokenHash, createHash('sha256').update(a.token).digest('hex'));
+  // SHA-256 of "abc" is a published test vector (FIPS 180-2), so no second implementation is needed here
+  assert.equal(hashToken('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   assert.notEqual(a.tokenHash, a.token);
   assert.equal(hashToken(a.token), a.tokenHash);
 });

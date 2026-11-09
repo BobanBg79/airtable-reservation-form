@@ -29,7 +29,7 @@ function checkName(raw, label) {
 }
 
 /** Phone is optional: empty means none (null). */
-function checkPhone(raw) {
+export function checkPhone(raw) {
   if (raw === undefined || raw === null) return { value: null };
   const value = text(raw);
   if (!value) return { value: null };

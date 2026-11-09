@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { nightsBetween } from '../packages/core/src/models/date.ts';
+import { checkPhone } from '../api/_userInput.js';
+import { isValidISODate, nightsBetween } from '../packages/core/src/models/date.ts';
+import { rangesOverlap } from '../packages/core/src/models/overlap.ts';
 import { DEV_APARTMENTS, SEED_BASE_DATE, SEED_USER_EMAIL, buildDevReservations } from './seed-data.mjs';
 
-const PHONE = /^[+]?[0-9]{6,15}$/;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CHANNELS = ['direct', 'booking', 'airbnb', 'local_agency'];
 
 // ---- apartments: must satisfy the table's check constraints so the seed cannot fail halfway ----
@@ -26,7 +26,7 @@ test('seed apartments satisfy the schema checks (area > 0, rent >= 0, phone form
   for (const a of DEV_APARTMENTS) {
     assert.ok(a.area_m2 > 0, a.name);
     assert.ok(a.monthly_rent_eur >= 0, a.name);
-    assert.match(a.owner_phone, PHONE, a.name);
+    assert.equal(checkPhone(a.owner_phone).error, undefined, a.name); // the real phone rule of the users table
     for (const k of ['address', 'apartment_number', 'building_name', 'owner_name']) assert.ok(a[k], `${a.name}.${k}`);
     assert.ok(Number.isInteger(a.floor), a.name);
   }
@@ -78,10 +78,11 @@ test('every reservation satisfies the schema checks, for any base date', () => {
   for (const base of BASES) {
     for (const r of buildDevReservations(base)) {
       const label = `${base} ${r.apartment_name} ${r.guest_name}`;
-      assert.match(r.check_in_date, ISO_DATE, label);
-      assert.match(r.check_out_date, ISO_DATE, label);
-      assert.ok(r.check_out_date > r.check_in_date, `${label}: check-out after check-in`);
-      assert.match(r.guest_phone, PHONE, label);
+      // valid dates, and check-out after check-in, by the real date functions of packages/core
+      assert.equal(isValidISODate(r.check_in_date), true, label);
+      assert.equal(isValidISODate(r.check_out_date), true, label);
+      assert.ok(nightsBetween(r.check_in_date, r.check_out_date) > 0, `${label}: check-out after check-in`);
+      assert.equal(checkPhone(r.guest_phone).error, undefined, label);
       assert.ok(CHANNELS.includes(r.channel), label);
       assert.ok(r.guest_name.length > 0, label);
       assert.match(r.total_amount_eur, /^\d+\.\d{2}$/, label);
@@ -96,7 +97,10 @@ test('no two reservations of the same apartment overlap, for any base date', () 
     for (const a of res) {
       for (const b of res) {
         if (a === b || a.apartment_name !== b.apartment_name) continue;
-        const overlap = a.check_in_date < b.check_out_date && a.check_out_date > b.check_in_date;
+        const overlap = rangesOverlap(
+          { checkIn: a.check_in_date, checkOut: a.check_out_date },
+          { checkIn: b.check_in_date, checkOut: b.check_out_date },
+        );
         assert.equal(overlap, false, `${base}: ${a.guest_name} overlaps ${b.guest_name} in ${a.apartment_name}`);
       }
     }
