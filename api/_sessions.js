@@ -87,6 +87,23 @@ export async function revokeSession(sql, sessionId, byUserId) {
   ]);
 }
 
+/**
+ * The query that ends every active session of one user (is_active = false, never a delete). Returned as is so it
+ * can run inside `sql.transaction`. Used when a new login replaces the older sessions, and when the admin
+ * deactivates a user or sets a new password. `byUserId` is who did it.
+ */
+export function revokeUserSessionsQuery(sql, userId, byUserId) {
+  return sql.query(
+    'update sessions set is_active = false, updated_by = $2::bigint where user_id = $1::bigint and is_active',
+    [userId, byUserId],
+  );
+}
+
+/** Ends every active session of a user. Call it in the same transaction as the change that needs it. */
+export function revokeUserSessions(sql, userId, byUserId) {
+  return revokeUserSessionsQuery(sql, userId, byUserId);
+}
+
 /** What the clients get after login and from /api/auth/me. */
 export function sessionPayload(session) {
   return { user: session.user, permissions: session.permissions, expiresAt: session.expiresAt };

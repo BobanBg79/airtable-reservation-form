@@ -115,6 +115,10 @@ test('success: one transaction records the attempt, sets last_login_at and creat
   assert.match(sql.callsTo('update users set last_login_at = now()')[0].text, /last_login_at = now\(\)/);
   const created = sql.callsTo('insert into sessions');
   assert.equal(created.length, 1);
+  const revoked = sql.callsTo('update sessions set is_active = false');
+  assert.equal(revoked.length, 1, 'the older sessions of the user are ended');
+  assert.deepEqual(revoked[0].params, ['5', '5']);
+  assert.ok(sql.calls.indexOf(revoked[0]) < sql.calls.indexOf(created[0]), 'the old sessions end before the new one is made');
   assert.ok(!created[0].params.includes(r.body.token), 'only the hash of the token is stored');
 });
 

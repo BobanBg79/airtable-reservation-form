@@ -2,7 +2,13 @@
 // password check are passed in, so tests can use fakes. Returns { status, body, headers? } for the handler.
 import { isLimited, recordAttemptQuery } from './_loginLimits.js';
 import { verifyPassword } from './_password.js';
-import { createSessionQuery, generateToken, resolveSession, sessionPayload } from './_sessions.js';
+import {
+  createSessionQuery,
+  generateToken,
+  resolveSession,
+  revokeUserSessionsQuery,
+  sessionPayload,
+} from './_sessions.js';
 
 export const INVALID = 'Invalid email or password';
 
@@ -44,11 +50,13 @@ export async function performLogin(sql, { email, password, ip }, { verify = veri
     return { status: 401, body: { error: INVALID } };
   }
 
-  // 3. Success, in one transaction: the attempt, last_login_at and the session.
+  // 3. Success, in one transaction: the attempt, last_login_at, ending the user's older sessions (one active
+  //    session per user: signing in on a new device signs out the old one) and the new session.
   const { token, tokenHash } = generateToken();
   await sql.transaction([
     recordAttemptQuery(sql, { email: normalized, ip, userId: user.id, succeeded: true }),
     sql.query('update users set last_login_at = now(), updated_by = $1::bigint where id = $1::bigint', [user.id]),
+    revokeUserSessionsQuery(sql, user.id, user.id),
     createSessionQuery(sql, user.id, tokenHash),
   ]);
 

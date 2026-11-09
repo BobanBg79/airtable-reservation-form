@@ -11,6 +11,7 @@ import {
   hashToken,
   resolveSession,
   revokeSession,
+  revokeUserSessions,
   sessionPayload,
 } from './_sessions.js';
 
@@ -109,6 +110,15 @@ test('revokeSession sets is_active = false and records who did it; it never dele
   assert.match(text, /update sessions set is_active = false, updated_by = \$2::bigint/);
   assert.doesNotMatch(text, /delete/i);
   assert.deepEqual(params, ['11', '5']);
+});
+
+test('revokeUserSessions ends all active sessions of one user, records who did it, and never deletes', async () => {
+  const sql = fakeSql();
+  await revokeUserSessions(sql, '7', '5');
+  const { text, params } = sql.calls[0];
+  assert.match(text, /update sessions set is_active = false, updated_by = \$2::bigint where user_id = \$1::bigint and is_active/);
+  assert.doesNotMatch(text, /delete/i);
+  assert.deepEqual(params, ['7', '5']);
 });
 
 test('sessionPayload leaves out the session id', () => {
