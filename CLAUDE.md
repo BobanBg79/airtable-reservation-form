@@ -19,7 +19,7 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
   - **Order matters:** add `DATABASE_URL` to Vercel Production before pushing the Postgres API to `main`, otherwise the production API returns 500 (`KNOWN_ISSUES.md` 16).
 - **Existing files:**
-  - Every route needs a session (ADR 0008): `api/auth/login.js` (public), `api/auth/me.js`, `api/auth/logout.js`, `api/auth/logout-all.js`, `api/calendar.js` (`can_view_reservation`), `api/apartments.js` (`can_view_apartment`; owner contact and rent only with their own permissions), `api/users.js` (`can_view_user`). Each exports its handler through `protect`, `authenticated` or `publicRoute` from `api/_guard.js`; a test fails if a route has none.
+  - Every route needs a session (ADR 0008): `api/auth/login.js` (public), `api/auth/me.js`, `api/auth/logout.js`, `api/auth/logout-all.js`, `api/calendar.js` (`can_view_reservation`), `api/apartments.js` (`can_view_apartment`; owner contact and rent only with their own permissions), `api/users.js` (`can_view_user`; also one user with `?id=`), `api/roles.js` (`can_view_user`), `api/users/create.js` (`can_create_user`) and `api/users/edit.js` (`can_edit_user`). Every entity has its own create and its own edit route. Each exports its handler through `protect`, `authenticated` or `publicRoute` from `api/_guard.js`; a test fails if a route has none.
   - There is no write endpoint yet: `api/reserve.js` (Airtable) was removed; create, edit and cancel are to be written on Postgres (`TODO.md`).
   - Helpers (not routes): `api/_db.js` (the Neon connection), `api/_pgReads.js` (read queries), `api/_status.js`, `api/_dbGuard.js`.
   - The old `index.html` / `calendar.html` pages were deleted; the apps are the only clients.
@@ -59,8 +59,8 @@ packages/
   core/            # TypeScript, NO React, NO UI
     models/        # types, date + overlap utils
     services/      # api client for /api/* (base URL configurable)
-    viewmodels/    # framework-agnostic: CalendarVM, ReservationFormVM, AuthVM
-  react-bindings/  # thin hooks: useCalendarVM, useReservationFormVM, useAuthVM
+    viewmodels/    # framework-agnostic: FormVM (every form), userFormVM; to come: CalendarVM, AuthVM
+  react-bindings/  # thin hooks, shared by mobile and web: useForm (to come: useCalendarVM, useAuthVM)
 apps/
   mobile/          # React Native (Expo) — PRIORITY
   web/             # React + React Router (Vite)
@@ -75,9 +75,10 @@ Rules:
 ## Mobile app structure (`apps/mobile/src`, Expo Router; see ADR 0006)
 - `app/_layout.tsx`: providers (Paper theme, `ApartmentsProvider`) and the root `Stack`.
 - `app/(tabs)/_layout.tsx`: bottom navigation. In SDK 58 `Tabs` from `expo-router` is deprecated; use the headless `expo-router/ui` (`Tabs`, `TabSlot`, `TabList`, `TabTrigger asChild`). The bar is our own Material 3 style (`components/TabBarItem.tsx`), shorter with icon and label side by side in landscape. The triggers must be direct children of `<TabList>`.
-- Tabs (Home, Calendar, Apartments, Users): `(tabs)/index.tsx` Home (greets the signed-in user, shortcuts by permission, Sign out and Sign out of all devices), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen), `(tabs)/users.tsx` the users list (temporarily public, admin only after authentication; `GET /api/users` never returns a password hash).
+- Tabs (Home, Calendar, Apartments, Users): `(tabs)/index.tsx` Home (greets the signed-in user, shortcuts by permission, Sign out and Sign out of all devices), `(tabs)/calendar.tsx` the multi-calendar, `(tabs)/apartments.tsx` the list (two columns on a wide screen), `(tabs)/users.tsx` the users list (needs `can_view_user`; a tap opens the user, the Add user button needs `can_create_user`; `GET /api/users` never returns a password hash).
 - `app/apartment/[id].tsx`: read-only apartment details, pushed on the root stack so Back returns to the list or to the calendar. Opened from a row in the list and by tapping an apartment name in the calendar (`MonthGrid` `onPressApartment`).
 - Data: `src/api.ts` is the one API client; `state/ApartmentsProvider.tsx` loads the apartments once for the whole app (TEMPORARY, to become a ViewModel in `packages/core`, like `hooks/useCalendarData.ts`). Pure logic such as `formatFloor`, `apartmentAmenities`, `formatEur` and the `/api/apartments` parsing lives in `packages/core` with tests.
+- **Forms (one behaviour for every entity and every app):** `FormVM` in `packages/core/src/viewmodels/` decides everything a form does: create / view / edit modes, when a field's message shows (after blur or a Save attempt; the server's message until the field changes; other server errors in a banner), required fields, when Save is enabled (required fields filled, nothing being sent, something changed when editing), when Edit shows (view mode, caller may edit), and what Cancel restores (every field, no messages). An entity only provides a `FormDefinition` (see `userFormVM.ts`, rules in `models/userForm.ts`). `@delta/react-bindings` has the one hook (`useForm`). The mobile pieces in `components/form/FormFields.tsx` only draw that state; never put a form rule in a view. User screens: `app/user/new.tsx` (Add user, `can_create_user`) and `app/user/[id].tsx` (details, read-only, Edit with `can_edit_user`), both on `components/UserFormScreen.tsx`; the Users list opens them.
 - Every apartment keeps one colour everywhere (`apartmentHues` in `core`): calendar bars, list avatars and the detail hero.
 
 ## Design
@@ -145,5 +146,5 @@ Everything below is on `main` (commit and push only on request).
 **Where to start a new session**
 1. `git checkout main && git pull origin main`, then a new feature branch from `main`.
 2. Read `TODO.md` (the next tasks, in a suggested order), `KNOWN_ISSUES.md` and the ADRs in `docs/decisions/` that touch the task.
-3. Suggested next task: subtasks 5 and 6 of the users task (create and edit users, Manage roles; `TODO.md`), now that authentication is done. After them: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
+3. Suggested next task: subtask 6 of the users task (Manage roles; `TODO.md`); subtask 5 (create and edit users) is done. Before the next entity that needs create and edit routes (apartments, reservations) the Vercel Hobby limit of 12 functions will be reached (9 today): the owner upgrades the plan then. After it: the `inquiry` status and the overlap constraint, the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
 4. To see the app on the phone: `/phone-preview`. The deployed app shows fake dev data and no real data may be entered yet (ADR 0005, `KNOWN_ISSUES.md` 16 and 17).

@@ -35,7 +35,10 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 | `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/logout-all` | any signed-in user |
 | `GET /api/calendar` | `can_view_reservation` |
 | `GET /api/apartments` | `can_view_apartment` |
-| `GET /api/users` | `can_view_user` |
+| `GET /api/users` (the list, or one user with `?id=`) | `can_view_user` |
+| `GET /api/roles` | `can_view_user` |
+| `POST /api/users/create` | `can_create_user` |
+| `POST /api/users/edit` | `can_edit_user` |
 
 **Field filtering.** Without `can_view_apartment_owner_contact` the server does not select or send `ownerName` and `ownerPhone`; without `can_view_apartment_rent` it does not send `monthlyRentEur`. The keys are absent, not null. In `packages/core` these three fields are optional and the screens skip them.
 
