@@ -23,7 +23,6 @@ test('the reference-data migration inserts exactly the roles and permissions of 
 
 test('the migration gives business_owner and manager everything except the user permissions', () => {
   const excluded = [...MIGRATION.matchAll(/NOT IN \(([^)]*)\)/g)][0][1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
-  const expected = PERMISSIONS.filter((p) => !INITIAL_ROLE_PERMISSIONS.business_owner.includes(p));
-  assert.deepEqual(excluded.sort(), [...expected].sort());
+  assert.deepEqual(excluded.sort(), ['can_create_user', 'can_edit_user', 'can_view_user']);
   assert.deepEqual(INITIAL_ROLE_PERMISSIONS.business_owner, INITIAL_ROLE_PERMISSIONS.manager);
 });

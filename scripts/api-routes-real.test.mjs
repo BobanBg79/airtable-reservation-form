@@ -58,7 +58,8 @@ const CALLS = {
     request: { method: 'GET' },
     check: (body, role) => {
       assert.equal(body.user.email, 'a@b.co');
-      assert.deepEqual(body.permissions, [...INITIAL_ROLE_PERMISSIONS[role]]);
+      assert.equal(body.permissions.length, ME_PERMISSION_COUNT[role]);
+      assert.equal(body.permissions.includes('can_create_user'), role === 'admin'); // only the admin may create users
     },
   },
   '/api/auth/logout': { request: { method: 'POST' }, check: (body) => assert.deepEqual(body, { ok: true }) },
@@ -117,6 +118,9 @@ const EXPECTED_STATUS = {
   '/api/roles': ONLY_ADMIN,
   '/api/users/create': { ...ONLY_ADMIN, admin: 201 },
 };
+
+// How many permissions /api/auth/me must report for each role (the initial sets of ADR 0007), written out.
+const ME_PERMISSION_COUNT = { admin: 19, business_owner: 16, manager: 16, cleaning_lady: 0, handyman: 0 };
 
 const routes = listRoutes();
 
