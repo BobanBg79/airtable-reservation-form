@@ -67,7 +67,7 @@ The real apartments for production come from the one-time data migration, not fr
   npm run db:create-admin
   ```
 
-  It asks for the email, first name, last name, an optional phone, and the password twice (not shown; at least 12 characters, bcrypt, cost 12). It connects as `neondb_owner` (`MIGRATION_DATABASE_URL`), which must point at the same Neon endpoint as `DATABASE_URL` (the `dev` branch), refuses if any admin exists, and prints only the email and the new id. The password hashing lives in `api/_password.js` and is shared with the future login.
+  It asks for the email, first name, last name, an optional phone, and the password twice (not shown; at least 10 characters with upper and lower case, a digit and a special character, bcrypt, cost 12). It connects as `neondb_owner` (`MIGRATION_DATABASE_URL`), which must point at the same Neon endpoint as `DATABASE_URL` (the `dev` branch), refuses if any admin exists, and prints only the email and the new id. The password hashing lives in `api/_password.js` and is shared with the future login.
 
 ## Running the API and the app locally
 

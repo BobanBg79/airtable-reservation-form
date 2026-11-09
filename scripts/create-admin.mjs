@@ -63,7 +63,7 @@ const email = await ask('Email: ');
 const firstName = await ask('First name: ');
 const lastName = await ask('Last name: ');
 const phone = await ask('Phone (optional): ');
-const password = await ask('Password (at least 12 characters): ', { hidden: true });
+const password = await ask('Password (10+ characters with upper and lower case, a digit and a special character such as !): ', { hidden: true });
 const again = await ask('Repeat the password: ', { hidden: true });
 rl.close();
 

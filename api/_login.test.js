@@ -135,10 +135,10 @@ test('the system user dev-seed cannot sign in: no password matches its hash, lik
 });
 
 test('a real bcrypt round trip signs in', async () => {
-  const hash = await hashPassword('correct horse battery');
+  const hash = await hashPassword('Correct-horse-9battery');
   const sql = db({ user: { id: '5', password_hash: hash, can_login: true } });
-  const ok = await performLogin(sql, { email: 'owner@example.com', password: 'correct horse battery', ip: IP });
+  const ok = await performLogin(sql, { email: 'owner@example.com', password: 'Correct-horse-9battery', ip: IP });
   assert.equal(ok.status, 200);
-  const bad = await performLogin(db({ user: { id: '5', password_hash: hash, can_login: true } }), { email: 'owner@example.com', password: 'wrong horse battery', ip: IP });
+  const bad = await performLogin(db({ user: { id: '5', password_hash: hash, can_login: true } }), { email: 'owner@example.com', password: 'Wrong-horse-9battery', ip: IP });
   assert.equal(bad.status, 401);
 });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { databaseHost, normalizeEmail, sameDatabase, validateAdminInput } from './create-admin-lib.mjs';
 
-const good = { email: ' Owner@Example.COM ', firstName: ' Slobodan ', lastName: 'K', phone: '', password: 'correct horse battery' };
+const good = { email: ' Owner@Example.COM ', firstName: ' Slobodan ', lastName: 'K', phone: '', password: 'Correct-horse-9battery' };
 
 test('normalizes the email and names, and treats an empty phone as none', () => {
   const { value, problems } = validateAdminInput(good);
@@ -15,7 +15,8 @@ test('normalizes the email and names, and treats an empty phone as none', () => 
 
 test('reports every problem', () => {
   const { problems } = validateAdminInput({ email: 'nope', firstName: '', lastName: '', phone: '12 34', password: 'short' });
-  assert.equal(problems.length, 5);
+  // email, first name, last name, phone, and four password problems (too short, no uppercase, no digit, no special)
+  assert.equal(problems.length, 8);
 });
 
 test('accepts a valid phone', () => {
