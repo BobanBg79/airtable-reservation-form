@@ -21,6 +21,7 @@ const EXPECTED = {
   '/api/apartments': { kind: 'protect', permission: 'can_view_apartment' },
   '/api/users': { kind: 'protect', permission: 'can_view_user' },
   '/api/roles': { kind: 'protect', permission: 'can_view_user' },
+  '/api/users/create': { kind: 'protect', permission: 'can_create_user' },
 };
 
 test('every route in api/ declares a guard (protect, authenticated or publicRoute)', () => {
@@ -104,9 +105,11 @@ test('matrix: the expected outcomes for the seeded roles, spelled out', async ()
   // Users is admin only.
   assert.equal(await outcome('admin', '/api/users'), 200);
   assert.equal(await outcome('admin', '/api/roles'), 200);
+  assert.equal(await outcome('admin', '/api/users/create'), 200);
   for (const role of ['business_owner', 'manager', 'cleaning_lady', 'handyman']) {
     assert.equal(await outcome(role, '/api/users'), 403, role);
     assert.equal(await outcome(role, '/api/roles'), 403, role);
+    assert.equal(await outcome(role, '/api/users/create'), 403, role);
   }
   // Calendar and apartments: everyone with the view permissions.
   for (const role of ['admin', 'business_owner', 'manager']) {

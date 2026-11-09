@@ -33,7 +33,10 @@ function databaseFor(role) {
   return fakeSql([
     [SESSION_QUERY, [session]],
     ['from users u', [userRow]],
+    ['from roles where id', [{ id: '2' }]], // the role lookup of create user
     ['from roles where', [{ id: '1', name: 'admin' }]],
+    ['select 1 as taken from users', []],
+    ['insert into users', [{ id: '9' }]],
     ['from apartments', [apartmentRow]],
   ]);
 }
@@ -89,6 +92,17 @@ const CALLS = {
     },
   },
   '/api/roles': { request: { method: 'GET' }, check: (body) => assert.deepEqual(body, [{ id: '1', name: 'admin' }]) },
+  '/api/users/create': {
+    request: {
+      method: 'POST',
+      body: { email: 'new@example.com', firstName: 'New', lastName: 'User', phone: '', roleId: '2', password: 'Correct-horse-9battery' },
+    },
+    status: 201,
+    check: (body) => {
+      assert.equal(body.email, 'owner@example.com'); // the fake database answers the read-back with its one user
+      assert.doesNotMatch(JSON.stringify(body), /password|\$2b/i);
+    },
+  },
 };
 
 const routes = listRoutes();
@@ -100,7 +114,7 @@ test('every route file has a call defined here (a new route must be added on pur
 for (const { file, route } of routes) {
   const handler = (await import(pathToFileURL(file).href)).default;
   const { guard } = handler;
-  const { request, check } = CALLS[route] ?? {};
+  const { request, check, status = 200 } = CALLS[route] ?? {};
 
   test(`${route}: declares its guard on the exported handler`, () => {
     assert.ok(guard && ['public', 'authenticated', 'protect'].includes(guard.kind), `${route} has no guard`);
@@ -123,10 +137,10 @@ for (const { file, route } of routes) {
 
   for (const role of ROLES) {
     const allowed = guard?.kind === 'authenticated' || INITIAL_ROLE_PERMISSIONS[role].includes(guard?.permission);
-    test(`${route}: ${role} gets ${allowed ? '200 with the data' : '403 and the handler never runs'}`, async () => {
+    test(`${route}: ${role} gets ${allowed ? `${status} with the data` : '403 and the handler never runs'}`, async () => {
       const { res, handlerQueries } = await call(handler, request, role);
       if (allowed) {
-        assert.equal(res.statusCode, 200);
+        assert.equal(res.statusCode, status);
         check(res.body, role);
       } else {
         assert.equal(res.statusCode, 403);
