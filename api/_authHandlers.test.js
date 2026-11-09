@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { handleLogin, handleLogout, handleMe } from './_authHandlers.js';
+import { handleLogin, handleLogout, handleLogoutAll, handleMe } from './_authHandlers.js';
 import { fakeRes, fakeSql } from './_fakeSql.js';
 
 // ---- /api/auth/login ----
@@ -99,6 +99,25 @@ test('logout: sets is_active = false on the current session and nothing else', a
   assert.equal(revoke.length, 1);
   assert.deepEqual(revoke[0].params, ['11', '5']);
   assert.ok(sql.calls.every((c) => !/delete/i.test(c.text)));
+});
+
+test('logout-all: ends every active session of the signed-in user, this one included, and deletes nothing', async () => {
+  const sql = fakeSql();
+  const res = fakeRes();
+  await handleLogoutAll({ method: 'POST', headers: {} }, res, { sql, auth });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true });
+  const revoke = sql.callsTo('set is_active = false');
+  assert.equal(revoke.length, 1);
+  assert.match(revoke[0].text, /where user_id = \$1::bigint and is_active/);
+  assert.deepEqual(revoke[0].params, ['5', '5']);
+  assert.ok(sql.calls.every((c) => !/delete/i.test(c.text)));
+});
+
+test('logout-all: only POST', async () => {
+  const res = fakeRes();
+  await handleLogoutAll({ method: 'GET', headers: {} }, res, { sql: fakeSql(), auth });
+  assert.equal(res.statusCode, 405);
 });
 
 test('logout: only POST', async () => {

@@ -55,8 +55,10 @@ export interface ApiClient {
   login(email: string, password: string): Promise<LoginResult>;
   /** The signed-in user and the CURRENT permissions (also refreshes the session expiry). */
   getMe(): Promise<AuthSession>;
-  /** Ends the session on the server. */
+  /** Ends this session on the server. */
   logout(): Promise<void>;
+  /** Ends every session of the signed-in user on the server, this device included. */
+  logoutAll(): Promise<void>;
 }
 
 // ---- Wire format of GET /api/calendar ----
@@ -256,6 +258,9 @@ export function createApiClient({ baseUrl, fetch: fetchImpl, getToken, onUnautho
     },
     async logout() {
       await request('POST', '/api/auth/logout', 'Could not sign out.');
+    },
+    async logoutAll() {
+      await request('POST', '/api/auth/logout-all', 'Could not sign out of all devices.');
     },
   };
 }

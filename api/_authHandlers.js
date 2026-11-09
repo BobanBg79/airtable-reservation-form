@@ -2,7 +2,7 @@
 // adapters). Kept apart so the handlers can be tested without a database connection.
 import { performLogin } from './_login.js';
 import { getClientIp } from './_loginLimits.js';
-import { revokeSession, sessionPayload } from './_sessions.js';
+import { revokeSession, revokeUserSessions, sessionPayload } from './_sessions.js';
 
 function allow(req, res, method) {
   if (req.method === method) return true;
@@ -61,5 +61,17 @@ export async function handleLogout(req, res, { sql, auth }) {
     res.status(200).json({ ok: true });
   } catch (e) {
     fail(res, 'logout', e);
+  }
+}
+
+/** POST /api/auth/logout-all: ends every session of the signed-in user, this one included (is_active = false). */
+export async function handleLogoutAll(req, res, { sql, auth }) {
+  if (!allow(req, res, 'POST')) return;
+  try {
+    await revokeUserSessions(sql, auth.user.id, auth.user.id);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    fail(res, 'logout-all', e);
   }
 }

@@ -16,8 +16,8 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 
 - **Token:** at login the server makes a random 32-byte token (base64url) and stores only its SHA-256 hash in `sessions.token_hash`. The token goes to the client once. The app sends `Authorization: Bearer <token>` and keeps it in `expo-secure-store` (Android Keystore / iOS Keychain). There is no web cookie yet (no web app).
 - **Expiry:** sliding 7 days, hard cap 90 days from login. Every authenticated request moves `expires_at` to now + 7 days, never past `max_expires_at` (login + 90 days; the table has a check `expires_at <= max_expires_at`). After that a new login is needed. The slide happens in the same statement that checks the session (`resolveSession` in `api/_sessions.js`).
-- **One active session per user:** a successful login ends the user's older sessions (`is_active = false`, `updated_by` = the user) in the same transaction that creates the new one, so signing in on a second device signs out the first (`revokeUserSessionsQuery` in `api/_sessions.js`). Decided by the owner on 2026-11-09.
-- **End of a session:** logout, a newer login, and (from subtask 5 of the users brief) deactivating the user or setting a new password set `is_active = false` through `revokeUserSessions`; nothing is deleted (ADR 0007). `created_by` is the session's own user, `updated_by` the admin when the admin revokes it.
+- **Several devices at once, the user chooses:** a login never ends the user's other sessions. "Sign out" (`POST /api/auth/logout`) ends only this device's session; "Sign out of all devices" (`POST /api/auth/logout-all`, any signed-in user) ends every session of the user, this one included. Decided by the owner on 2026-11-09 (the first idea, one session per user, was dropped).
+- **End of a session:** logout, logout-all, and (from subtask 5 of the users brief) deactivating the user or setting a new password set `is_active = false` (`revokeSession`, `revokeUserSessions`); nothing is deleted (ADR 0007). `created_by` is the session's own user, `updated_by` the admin when the admin revokes it.
 - **Tables** (migrations 0006 and 0007): `sessions` (ADR 0004 conventions, index on `user_id`, `updated_at` trigger, delete and truncate triggers) and `login_attempts` (insert only, an exception to ADR 0004: no `is_active`, `updated_at`, `created_by` or `updated_by`, because a row never changes and a failed attempt has no user). `delta_app` has INSERT and SELECT on `login_attempts` but its UPDATE was revoked.
 
 **Login flow, in this order** (`api/_login.js`):
@@ -32,7 +32,7 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 | Route | Rule |
 | --- | --- |
 | `POST /api/auth/login` | public (the only public route) |
-| `GET /api/auth/me`, `POST /api/auth/logout` | any signed-in user |
+| `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/logout-all` | any signed-in user |
 | `GET /api/calendar` | `can_view_reservation` |
 | `GET /api/apartments` | `can_view_apartment` |
 | `GET /api/users` | `can_view_user` |
@@ -45,7 +45,7 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 
 - **Every authenticated request writes** the session row (the slide), so `updated_at` moves on each call. Fine at our volume.
 - `sessions` and `login_attempts` only grow (nothing is deleted); at our volume this is irrelevant.
-- **One device at a time, and no device list.** A stolen token works until a newer login, a logout, a revocation, the user's deactivation, or expiry. A user who needs the phone and a tablet at once is signed out of one of them at each login. Calling `revokeUserSessions` when the admin deactivates a user or sets a new password is part of subtask 5 of the users brief (`TODO.md`); the function exists, the endpoint that calls it does not yet.
+- **No device list.** A stolen token works until the owner of the account signs out (this device or all devices), an admin revokes it, the user is deactivated, or it expires. The user cannot see which devices are signed in. Calling `revokeUserSessions` when the admin deactivates a user or sets a new password is part of subtask 5 of the users brief (`TODO.md`); the function exists, the endpoint that calls it does not yet.
 - The deployed app and API must move together: once this is on `main`, an older build of the app, which sends no token, gets 401 everywhere. Only the owner uses the app, so this is acceptable, but it is why the push to `main` needs the owner's explicit OK.
 - Vercel Production still reads the Neon `dev` branch (ADR 0005); real data still must not be entered until the production branch exists.
 - The real SQL of the session (slide, cap, expired, inactive, revoked) cannot be checked with a fake client, so `scripts/sessions-db.test.mjs` runs it on the dev branch. It writes (inactive) session rows that can never be deleted, so it is opt-in: `RUN_SESSION_DB_TESTS=1 npm run test:scripts`.

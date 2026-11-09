@@ -297,6 +297,14 @@ describe('createApiClient authentication', () => {
     expect(fetch.mock.calls[1]![1]!.method).toBe('POST');
   });
 
+  it('logoutAll posts to /api/auth/logout-all with the token and resolves', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, { ok: true }));
+    const api = createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'abc' });
+    await expect(api.logoutAll()).resolves.toBeUndefined();
+    expect(fetch.mock.calls[0]![0]).toBe('https://example.com/api/auth/logout-all');
+    expect(fetch.mock.calls[0]![1]!.method).toBe('POST');
+  });
+
   it('being offline is an ApiError with status 0 (the app keeps the token and offers to retry)', async () => {
     const offline = vi.fn<FetchLike>(async () => {
       throw new TypeError('Failed to fetch');

@@ -10,7 +10,7 @@ import type { AppTheme } from '../../theme';
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
   const { apartments } = useApartments();
-  const { session, canOpen, signOut } = useAuth();
+  const { session, canOpen, signOut, signOutAll } = useAuth();
   const count = apartments?.length;
   const firstName = session?.user.firstName;
 
@@ -81,6 +81,9 @@ export default function HomeScreen() {
           ) : null}
           <Button mode="outlined" icon="logout" onPress={() => void signOut()}>
             Sign out
+          </Button>
+          <Button mode="text" icon="logout-variant" onPress={() => void signOutAll()}>
+            Sign out of all devices
           </Button>
         </View>
       </ScrollView>

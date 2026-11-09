@@ -16,6 +16,7 @@ const EXPECTED = {
   '/api/auth/login': { kind: 'public', permission: null },
   '/api/auth/me': { kind: 'authenticated', permission: null },
   '/api/auth/logout': { kind: 'authenticated', permission: null },
+  '/api/auth/logout-all': { kind: 'authenticated', permission: null },
   '/api/calendar': { kind: 'protect', permission: 'can_view_reservation' },
   '/api/apartments': { kind: 'protect', permission: 'can_view_apartment' },
   '/api/users': { kind: 'protect', permission: 'can_view_user' },
@@ -115,6 +116,7 @@ test('matrix: the expected outcomes for the seeded roles, spelled out', async ()
   for (const role of ROLES) {
     assert.equal(await outcome(role, '/api/auth/me'), 200, role);
     assert.equal(await outcome(role, '/api/auth/logout'), 200, role);
+    assert.equal(await outcome(role, '/api/auth/logout-all'), 200, role);
   }
 });
 

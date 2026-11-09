@@ -23,7 +23,10 @@ interface AuthValue {
   message?: string;
   /** Resolves to an error message to show on the login screen, or null when signed in. */
   signIn: (email: string, password: string) => Promise<string | null>;
+  /** Ends this device's session. */
   signOut: () => Promise<void>;
+  /** Ends the sessions on every device of this user, this one included. */
+  signOutAll: () => Promise<void>;
   /** Try again after "offline". */
   retry: () => void;
   can: (permission: PermissionName) => boolean;
@@ -118,6 +121,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await endSession();
   }, [endSession]);
 
+  const signOutAll = useCallback(async () => {
+    checking.current++;
+    try {
+      await api.logoutAll(); // if this fails the other devices stay signed in; this phone still signs out below
+    } catch {
+      /* ignore */
+    }
+    await endSession();
+  }, [endSession]);
+
   const value = useMemo<AuthValue>(() => {
     const permissions = state.session?.permissions;
     return {
@@ -126,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       message: state.message,
       signIn,
       signOut,
+      signOutAll,
       retry: () => {
         setState({ status: 'loading' });
         void check();
@@ -133,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can: (permission) => can(permissions, permission),
       canOpen: (screen) => canOpenScreen(permissions, screen),
     };
-  }, [state, signIn, signOut, check]);
+  }, [state, signIn, signOut, signOutAll, check]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
