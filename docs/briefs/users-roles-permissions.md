@@ -23,7 +23,7 @@ Approved by the owner on 2026-11-08.
 - **Admin:** has every permission; only admin manages users and other roles' permissions; nobody can change the admin role's own permissions. Changing role permissions is a hard rule, not a permission. `can_manage_users` does not exist; it is replaced by the three `user` permissions.
 - **Passwords:** the password the admin sets when creating a user stays as it is; no forced change after the first login (no `must_change_password` column). Forgotten password: the admin sets a new password through edit user.
 
-## Permissions (initial list, 19)
+## Permissions (initial list, 19; `can_view_role` and `can_edit_role` were added later, see ADR 0007)
 
 | Entity | view | create | edit |
 | --- | --- | --- | --- |

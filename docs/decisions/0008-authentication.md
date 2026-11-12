@@ -37,6 +37,8 @@ ADR 0007 decided who may do what (users, roles, permissions) and how passwords a
 | `GET /api/apartments` | `can_view_apartment` |
 | `GET /api/users` (the list, or one user with `?id=`) | `can_view_user` |
 | `GET /api/roles` | `can_view_user` |
+| `GET /api/roles/permissions` | `can_view_role` |
+| `POST /api/roles/edit` | `can_edit_role` |
 | `POST /api/users/create` | `can_create_user` |
 | `POST /api/users/edit` | `can_edit_user` |
 
