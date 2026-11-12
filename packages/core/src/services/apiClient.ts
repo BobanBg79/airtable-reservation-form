@@ -8,6 +8,9 @@ import type {
   NewUserRequest,
   Reservation,
   RoleOption,
+  RolePermissions,
+  RoleUpdateRequest,
+  RoleWithPermissions,
   UserSummary,
   UserUpdateRequest,
   YearMonth,
@@ -60,6 +63,10 @@ export interface ApiClient {
   getUser(id: string): Promise<UserSummary>;
   /** The active roles, for the role dropdown of the user forms. */
   getRoles(): Promise<RoleOption[]>;
+  /** Every permission name and the roles with the permissions they have (the Manage roles screen). */
+  getRolePermissions(): Promise<RolePermissions>;
+  /** Sets the permissions of a role. ApiError 403 for the admin role or for an admin-only permission. */
+  updateRole(update: RoleUpdateRequest): Promise<RoleWithPermissions>;
   /** Adds a user. Rejects with an ApiError whose `fields` say what is wrong (400) or that the email is taken (409). */
   createUser(user: NewUserRequest): Promise<UserSummary>;
   /** Changes a user (only the fields sent). ApiError 403 for the admin's own deactivation or role. */
@@ -204,6 +211,32 @@ export function mapRolesResponse(dto: unknown): RoleOption[] {
   return out;
 }
 
+/** One role with its permissions, or an ApiError when the answer is not one. */
+export function mapRoleResponse(dto: unknown): RoleWithPermissions {
+  const r = dto as Record<string, unknown> | null;
+  if (r && typeof r === 'object' && isString(r.id) && isString(r.name) && isBoolean(r.isProtected) && Array.isArray(r.permissions)) {
+    return { id: r.id, name: r.name, isProtected: r.isProtected, permissions: (r.permissions as unknown[]).filter(isString) };
+  }
+  throw new ApiError('The server sent an unexpected answer.', 0);
+}
+
+/** The Manage roles data. Roles that are not well formed are skipped; an answer that is not this shape is an ApiError. */
+export function mapRolePermissionsResponse(dto: unknown): RolePermissions {
+  const d = dto as Record<string, unknown> | null;
+  if (!d || typeof d !== 'object' || !Array.isArray(d.permissions) || !Array.isArray(d.roles)) {
+    throw new ApiError('The server sent an unexpected answer.', 0);
+  }
+  const roles: RoleWithPermissions[] = [];
+  for (const role of d.roles) {
+    try {
+      roles.push(mapRoleResponse(role));
+    } catch {
+      /* skip a role that is not well formed */
+    }
+  }
+  return { permissions: (d.permissions as unknown[]).filter(isString), roles };
+}
+
 // ---- Wire format of POST /api/auth/login and GET /api/auth/me ----
 
 /** Maps a session response, or throws an ApiError when it is not one (a misbehaving server must never look signed in). */
@@ -292,6 +325,12 @@ export function createApiClient({ baseUrl, fetch: fetchImpl, getToken, onUnautho
     },
     async getRoles() {
       return mapRolesResponse(await request('GET', '/api/roles', 'Could not load roles.'));
+    },
+    async getRolePermissions() {
+      return mapRolePermissionsResponse(await request('GET', '/api/roles/permissions', 'Could not load roles.'));
+    },
+    async updateRole(update) {
+      return mapRoleResponse(await request('POST', '/api/roles/edit', 'Could not update the role.', update));
     },
     async createUser(user) {
       return mapUserResponse(await request('POST', '/api/users/create', 'Could not create the user.', user));

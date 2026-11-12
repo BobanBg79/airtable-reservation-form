@@ -83,6 +83,28 @@ export interface UserUpdateRequest {
   password?: string;
 }
 
+/** A role with the names of the permissions it has now, from GET /api/roles/permissions. */
+export interface RoleWithPermissions {
+  id: string;
+  /** e.g. "business_owner". */
+  name: string;
+  /** The admin role: nobody changes its permissions. */
+  isProtected: boolean;
+  permissions: string[];
+}
+
+/** Every permission name, and the roles with what each has (the Manage roles screen). */
+export interface RolePermissions {
+  permissions: string[];
+  roles: RoleWithPermissions[];
+}
+
+/** The body of POST /api/roles/edit: the role and the COMPLETE new set of its permission names. */
+export interface RoleUpdateRequest {
+  id: string;
+  permissions: string[];
+}
+
 /** The signed-in user, as the server describes them after login and from /api/auth/me. */
 export interface AuthUser {
   id: string;

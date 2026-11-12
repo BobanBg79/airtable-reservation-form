@@ -10,5 +10,7 @@ export * from './services/apiClient';
 export * from './models/permissions';
 export * from './models/user';
 export * from './models/userForm';
+export * from './models/roles';
 export * from './viewmodels/FormVM';
 export * from './viewmodels/userFormVM';
+export * from './viewmodels/roleFormVM';

@@ -415,3 +415,44 @@ describe('createApiClient: users and roles for the forms', () => {
     expect((err as ApiError).fields).toBeUndefined();
   });
 });
+
+describe('createApiClient: Manage roles', () => {
+  const roleDto = { id: '3', name: 'manager', isProtected: false, permissions: ['can_view_apartment'] };
+
+  it('getRolePermissions maps every permission name and each role, skipping a role that is not well formed', async () => {
+    const fetch = vi.fn<FetchLike>(async () =>
+      jsonResponse(200, {
+        permissions: ['can_view_apartment', 'can_edit_apartment', 7],
+        roles: [{ id: '1', name: 'admin', isProtected: true, permissions: ['can_view_apartment'] }, { id: 2, name: 'broken' }, roleDto],
+      }),
+    );
+    const data = await createApiClient({ baseUrl: 'https://example.com', fetch, getToken: () => 'abc' }).getRolePermissions();
+    expect(fetch.mock.calls[0]![0]).toBe('https://example.com/api/roles/permissions');
+    expect(data).toEqual({
+      permissions: ['can_view_apartment', 'can_edit_apartment'],
+      roles: [{ id: '1', name: 'admin', isProtected: true, permissions: ['can_view_apartment'] }, roleDto],
+    });
+  });
+
+  it('an answer that is not the Manage roles data is an ApiError', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, { roles: 'nope' }));
+    await expect(createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).getRolePermissions()).rejects.toMatchObject({ status: 0 });
+  });
+
+  it('updateRole posts the id and the complete set of names to the edit route and returns the role', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(200, roleDto));
+    const role = await createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).updateRole({ id: '3', permissions: ['can_view_apartment'] });
+    expect(fetch.mock.calls[0]![0]).toBe('/api/roles/edit');
+    expect(fetch.mock.calls[0]![1]!.method).toBe('POST');
+    expect(JSON.parse(fetch.mock.calls[0]![1]!.body!)).toEqual({ id: '3', permissions: ['can_view_apartment'] });
+    expect(role).toEqual(roleDto);
+  });
+
+  it('a refusal (403 for the admin role or an admin-only permission) is an ApiError with the message', async () => {
+    const fetch = vi.fn<FetchLike>(async () => jsonResponse(403, { error: 'The admin role cannot be changed.' }));
+    await expect(createApiClient({ baseUrl: '', fetch, getToken: () => 'abc' }).updateRole({ id: '1', permissions: [] })).rejects.toMatchObject({
+      status: 403,
+      message: 'The admin role cannot be changed.',
+    });
+  });
+});

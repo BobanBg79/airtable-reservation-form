@@ -63,6 +63,7 @@ export const SCREEN_PERMISSIONS = {
   calendar: 'can_view_reservation',
   apartments: 'can_view_apartment',
   users: 'can_view_user',
+  roles: 'can_view_role',
 } as const satisfies Record<string, PermissionName>;
 export type ScreenName = keyof typeof SCREEN_PERMISSIONS;
 

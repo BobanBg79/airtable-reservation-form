@@ -60,19 +60,20 @@ describe('can', () => {
 });
 
 describe('screen permissions', () => {
-  it('maps the three screens to their view permissions', () => {
+  it('maps the four screens to their view permissions', () => {
     expect(SCREEN_PERMISSIONS).toEqual({
       calendar: 'can_view_reservation',
       apartments: 'can_view_apartment',
       users: 'can_view_user',
+      roles: 'can_view_role',
     });
     for (const p of Object.values(SCREEN_PERMISSIONS)) expect(PERMISSIONS).toContain(p);
   });
 
   it('shows each role the tabs its permissions allow', () => {
     const open = (role: (typeof ROLES)[number]) =>
-      (['calendar', 'apartments', 'users'] as const).filter((s) => canOpenScreen(INITIAL_ROLE_PERMISSIONS[role], s));
-    expect(open('admin')).toEqual(['calendar', 'apartments', 'users']);
+      (['calendar', 'apartments', 'users', 'roles'] as const).filter((s) => canOpenScreen(INITIAL_ROLE_PERMISSIONS[role], s));
+    expect(open('admin')).toEqual(['calendar', 'apartments', 'users', 'roles']);
     expect(open('business_owner')).toEqual(['calendar', 'apartments']);
     expect(open('manager')).toEqual(['calendar', 'apartments']);
     expect(open('cleaning_lady')).toEqual([]);
