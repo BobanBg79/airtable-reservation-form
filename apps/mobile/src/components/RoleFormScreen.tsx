@@ -6,7 +6,7 @@ import { ActivityIndicator, Button, IconButton, Text, useTheme } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoleForm } from '../hooks/useRoleForm';
 import type { AppTheme } from '../theme';
-import { FormActions, FormBanner, FormSwitchField } from './form/FormFields';
+import { FormActions, FormBanner, FormInlineValues, FormSwitchField } from './form/FormFields';
 
 /**
  * The permissions of one role, as switches grouped by entity: read-only with an Edit button (the admin role has
@@ -72,16 +72,20 @@ function RoleFields({ form, permissionNames }: { form: FormVM<RoleFormData, Role
           <Text variant="titleSmall" style={[s.groupTitle, { color: theme.colors.primary }]}>
             {group.title}
           </Text>
-          {group.items.map((item) => (
-            <View key={item.name}>
-              <FormSwitchField {...field} field={item.name} label={item.label} />
-              {state.mode === 'edit' && state.editable[item.name] === false ? (
+          {state.mode === 'view' ? (
+            <FormInlineValues state={state} group={group.title} items={group.items.map((item) => ({ field: item.name, label: item.label }))} />
+          ) : (
+            <>
+              {group.items.map((item) => (
+                <FormSwitchField key={item.name} {...field} field={item.name} label={item.label} />
+              ))}
+              {group.items.some((item) => state.editable[item.name] === false) ? (
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Only the admin can have this permission.
+                  Only the admin can have the locked permissions.
                 </Text>
               ) : null}
-            </View>
-          ))}
+            </>
+          )}
         </View>
       ))}
 

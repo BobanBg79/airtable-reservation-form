@@ -158,6 +158,36 @@ export function FormSwitchField<V extends FormValues, S>(props: FieldProps<V, S>
   );
 }
 
+interface InlineValuesProps<V extends FormValues, S> {
+  state: FormState<V, S>;
+  /** The on/off fields to show side by side, e.g. View, Create and Edit of one entity. */
+  items: readonly { field: keyof V & string; label: string }[];
+  /** Names the group for a screen reader, e.g. "Apartment". */
+  group: string;
+}
+
+/** Several on/off fields read-only in ONE line, each as its label over a plain "Yes" or "No". A hidden field is left out. */
+export function FormInlineValues<V extends FormValues, S>({ state, items, group }: InlineValuesProps<V, S>) {
+  const theme = useTheme<AppTheme>();
+  return (
+    <View style={s.inline}>
+      {items
+        .filter((item) => state.visible[item.field])
+        .map(({ field, label }) => {
+          const on = state.values[field] === true;
+          return (
+            <View key={field} style={s.inlineCell} accessible accessibilityLabel={`${group} ${label}: ${on ? 'yes' : 'no'}`}>
+              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                {label}
+              </Text>
+              <Text variant="bodyLarge">{on ? 'Yes' : 'No'}</Text>
+            </View>
+          );
+        })}
+    </View>
+  );
+}
+
 /** The error that is not about one field (for example "No connection"), at the top of the form. */
 export function FormBanner({ message }: { message: string | null }) {
   const theme = useTheme<AppTheme>();
@@ -205,6 +235,8 @@ export function FormActions<V extends FormValues, S>({ form, state, saveLabel }:
 const s = StyleSheet.create({
   readOnly: { gap: 2, paddingVertical: 8 },
   message: { marginTop: 2, minHeight: 20 },
+  inline: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  inlineCell: { minWidth: 88, paddingVertical: 4, paddingRight: 12 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   switchLabel: { flex: 1 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16 },
