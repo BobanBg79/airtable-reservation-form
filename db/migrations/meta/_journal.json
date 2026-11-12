@@ -57,6 +57,13 @@
       "when": 1794153917198,
       "tag": "0007_auth_triggers_and_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794489915030,
+      "tag": "0008_role_permissions_for_manage_roles",
+      "breakpoints": true
     }
   ]
 }

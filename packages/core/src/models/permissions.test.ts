@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { can, canOpenScreen, INITIAL_ROLE_PERMISSIONS, PERMISSIONS, ROLES, SCREEN_PERMISSIONS } from './permissions';
 
 describe('permissions list', () => {
-  it('has 19 unique names in the can_<action>_<entity> form', () => {
-    expect(PERMISSIONS).toHaveLength(19);
-    expect(new Set(PERMISSIONS).size).toBe(19);
+  it('has 21 unique names in the can_<action>_<entity> form', () => {
+    expect(PERMISSIONS).toHaveLength(21);
+    expect(new Set(PERMISSIONS).size).toBe(21);
     for (const p of PERMISSIONS) expect(p).toMatch(/^can_(view|create|edit)_[a-z]+(_[a-z]+)*$/);
   });
 
@@ -23,15 +23,17 @@ describe('permissions list', () => {
 });
 
 describe('initial role permissions', () => {
-  it('gives admin all 19', () => {
+  it('gives admin all 21', () => {
     expect([...INITIAL_ROLE_PERMISSIONS.admin].sort()).toEqual([...PERMISSIONS].sort());
   });
 
-  it('gives business_owner and manager 16: everything except the user permissions', () => {
+  it('gives business_owner and manager 16: everything except the user and role permissions', () => {
     for (const role of ['business_owner', 'manager'] as const) {
       const set = INITIAL_ROLE_PERMISSIONS[role];
       expect(set).toHaveLength(16);
-      expect(set.filter((p) => p.endsWith('_user'))).toEqual([]);
+      for (const adminOnly of ['can_view_user', 'can_create_user', 'can_edit_user', 'can_view_role', 'can_edit_role']) {
+        expect(set).not.toContain(adminOnly);
+      }
     }
   });
 

@@ -25,6 +25,9 @@ export const PERMISSIONS = [
   'can_view_user',
   'can_create_user',
   'can_edit_user',
+  // The Manage roles screen: which permissions each role has. Roles are not created or removed here, so no create.
+  'can_view_role',
+  'can_edit_role',
   // Sub-entities have no create: they are created together with their entity.
   'can_view_apartment_owner_contact',
   'can_edit_apartment_owner_contact',
@@ -33,14 +36,15 @@ export const PERMISSIONS = [
 ] as const;
 export type PermissionName = (typeof PERMISSIONS)[number];
 
-const USER_PERMISSIONS: readonly PermissionName[] = ['can_view_user', 'can_create_user', 'can_edit_user'];
-const withoutUserPermissions = PERMISSIONS.filter((p) => !USER_PERMISSIONS.includes(p));
+// Only the admin manages users and roles (ADR 0007), so the other roles start without these.
+const ADMIN_ONLY_PERMISSIONS: readonly PermissionName[] = ['can_view_user', 'can_create_user', 'can_edit_user', 'can_view_role', 'can_edit_role'];
+const withoutAdminOnlyPermissions = PERMISSIONS.filter((p) => !ADMIN_ONLY_PERMISSIONS.includes(p));
 
 /** Initial permissions of each role, as seeded by the migration. Admin can change the others afterwards. */
 export const INITIAL_ROLE_PERMISSIONS: Record<RoleName, readonly PermissionName[]> = {
   admin: PERMISSIONS,
-  business_owner: withoutUserPermissions,
-  manager: withoutUserPermissions,
+  business_owner: withoutAdminOnlyPermissions,
+  manager: withoutAdminOnlyPermissions,
   cleaning_lady: [],
   handyman: [],
 };

@@ -127,7 +127,7 @@ const EXPECTED_STATUS = {
 };
 
 // How many permissions /api/auth/me must report for each role (the initial sets of ADR 0007), written out.
-const ME_PERMISSION_COUNT = { admin: 19, business_owner: 16, manager: 16, cleaning_lady: 0, handyman: 0 };
+const ME_PERMISSION_COUNT = { admin: 21, business_owner: 16, manager: 16, cleaning_lady: 0, handyman: 0 };
 
 const routes = listRoutes();
 

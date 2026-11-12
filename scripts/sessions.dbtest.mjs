@@ -49,7 +49,7 @@ after(async () => {
   if (created.length) await sql.query('update sessions set is_active = false where id = any($1::bigint[])', [created]);
 });
 
-test('a valid session is returned with the user and all 19 admin permissions, and the expiry slides to ~7 days', opts, async () => {
+test('a valid session is returned with the user and all admin permissions, and the expiry slides to ~7 days', opts, async () => {
   const { token, id } = await insertSession(await admin(), { expiresIn: DAY, maxIn: 90 * DAY });
   const session = await resolveSession(sql, token);
 
