@@ -4,9 +4,9 @@ Planned work. Decisions live in `docs/decisions/` (ADRs), known problems in `KNO
 
 ## Next tasks
 
-Suggested order (the owner decides): 1. Subtasks 5 and 6 of the users task (users and roles screens; subtasks 1 to 4 and authentication are done), 2. `inquiry` status and the overlap constraint, 3. write endpoints and the New reservation screen, 4. ViewModels, 5. the production branch and the data migration, 6. the web app. Auth comes first because it gates every write endpoint and the point at which real data may be entered.
+Suggested order (the owner decides): 1. `inquiry` status and the overlap constraint, 2. write endpoints and the New reservation screen, 3. apartment details edit mode, 4. the remaining ViewModels, 5. the production branch and the data migration, 6. the web app. (The users, roles and permissions task is done.) Auth comes first because it gates every write endpoint and the point at which real data may be entered.
 
-### Task: Users, roles and permissions (subtasks 1 to 4 and authentication done; start with 5)
+### Task: Users, roles and permissions (DONE, 2026-11-12; kept here for reference, the entry is also under "Done")
 
 **Brief and decisions:** `docs/briefs/users-roles-permissions.md` (approved 2026-11-08) and ADR 0007. Where the brief and an older doc disagree, the brief wins. Six subtasks; 1 to 4 first, 5 and 6 right after authentication.
 
@@ -36,7 +36,7 @@ Suggested order (the owner decides): 1. Subtasks 5 and 6 of the users task (user
 
 **Depends on:** users, roles and permissions, and authentication (done).
 
-**Where.** A `PATCH` endpoint in `api/` plus a guard from the auth task; form state and validation as a ViewModel in `packages/core` (pure `validateApartmentInput` next to `validateReservationInput`, with tests); the screen in `apps/mobile` stays thin. Show a clear saving state and a success message.
+**Where.** Its own edit route in `api/` (create and edit are separate routes for every entity) plus a guard from the auth task; the form is a `FormDefinition` on the shared `FormVM` in `packages/core` (see `userFormVM.ts`), which already provides the Edit, Cancel, Save and message behaviour; validation as a ViewModel in `packages/core` (pure `validateApartmentInput` next to `validateReservationInput`, with tests); the screen in `apps/mobile` stays thin. Show a clear saving state and a success message.
 
 ### Task: Write endpoints and the New reservation screen
 
@@ -50,7 +50,7 @@ Suggested order (the owner decides): 1. Subtasks 5 and 6 of the users task (user
 
 **Why.** `CLAUDE.md` wants all logic in Model and ViewModel. Today the temporary `hooks/useCalendarData.ts` and `state/ApartmentsProvider.tsx` hold loading, errors and the 60-second auto-refresh in the app.
 
-**Scope.** `CalendarVM`, `ApartmentsVM` (and later `ReservationFormVM`, `AuthVM`) in `packages/core/viewmodels`, framework-agnostic with subscribe, unit-tested; thin hooks in a new `packages/react-bindings`. Keep the behaviour (auto-refresh on foreground and every 60 seconds, silent failures, request-id guard against stale responses).
+**Scope.** `FormVM` (every form, with the user and role forms) and the first hook of `@delta/react-bindings` (`useForm`) already exist. Remaining: `CalendarVM`, `ApartmentsVM` (and later `ReservationFormVM`, `AuthVM`) in `packages/core/viewmodels`, framework-agnostic with subscribe, unit-tested; thin hooks in a new `packages/react-bindings`. Keep the behaviour (auto-refresh on foreground and every 60 seconds, silent failures, request-id guard against stale responses).
 
 ### Task: `inquiry` reservation status (short-term hold)
 
@@ -150,6 +150,7 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlap"
 
 ## Done
 
+- Users, roles and permissions (2026-11-12): the access tables and 21 permissions, login and sessions (ADR 0008), Add user, user details and edit, Manage roles (the Roles tab, `can_view_role` and `can_edit_role`), password rules, one `FormVM` for every form, and the testing rules in `CLAUDE.md`.
 - Drizzle migrations and the initial schema on the Neon `dev` branch (`fd79903`, `c994e01`).
 - Dev seed: nine apartments (real names, made-up details) and 25 fake reservations around 2026-11-07 (`npm run db:seed`).
 - Navigation (ADR 0006, `50b9e84`): bottom tabs (Home, Calendar, Apartments) and read-only apartment details, reached from the list and by tapping an apartment name in the calendar; `/api/apartments` returns the full details.
