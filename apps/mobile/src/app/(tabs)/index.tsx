@@ -66,7 +66,15 @@ export default function HomeScreen() {
               onPress={() => router.navigate('/users')}
             />
           ) : null}
-          {!canOpen('calendar') && !canOpen('apartments') && !canOpen('users') ? (
+          {canOpen('roles') ? (
+            <ShortcutCard
+              icon="shield-account"
+              title="Roles"
+              subtitle="What each role may do"
+              onPress={() => router.navigate('/roles')}
+            />
+          ) : null}
+          {!canOpen('calendar') && !canOpen('apartments') && !canOpen('users') && !canOpen('roles') ? (
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>
               Your account has no screens yet. Ask an administrator to give you access.
             </Text>

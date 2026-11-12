@@ -6,7 +6,7 @@ import { TabBarItem } from '../../components/TabBarItem';
 import { useAuth } from '../../state/AuthProvider';
 import type { AppTheme } from '../../theme';
 
-// Bottom navigation: Home always; Calendar, Apartments and Users only with their permission (SCREEN_PERMISSIONS in core). Headless tabs (expo-router/ui) so the bar can look
+// Bottom navigation: Home always; Calendar, Apartments, Users and Roles only with their permission (SCREEN_PERMISSIONS in core). Headless tabs (expo-router/ui) so the bar can look
 // like the rest of the app (Material 3). The triggers must sit directly inside <TabList>.
 export default function TabsLayout() {
   const theme = useTheme<AppTheme>();
@@ -45,6 +45,11 @@ export default function TabsLayout() {
         {canOpen('users') ? (
           <TabTrigger name="users" href="/users" asChild>
             <TabBarItem label="Users" icon="account-group-outline" activeIcon="account-group" compact={compact} />
+          </TabTrigger>
+        ) : null}
+        {canOpen('roles') ? (
+          <TabTrigger name="roles" href="/roles" asChild>
+            <TabBarItem label="Roles" icon="shield-account-outline" activeIcon="shield-account" compact={compact} />
           </TabTrigger>
         ) : null}
       </TabList>
