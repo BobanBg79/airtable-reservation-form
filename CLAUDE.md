@@ -13,7 +13,7 @@ Booking system for 15 rental apartments (Delta Apartmani, Serbia). Two people en
   - Schema: `db/schema.ts` (tables `apartments`, `reservations`); statuses `active` (default), `cancelled`, `no_show`, and `inquiry` to be added (`TODO.md`). `cancelled` and `no_show` free the dates, everything else blocks (`api/_status.js`).
   - The 15 real apartments (Atlas, Berlin, Devetka, Egzotik, Eli, Kapiten, Karuzo, Luna, Margareta, Mimoza, Modena, Mona, Neva, Neven, Onyx) are not in Postgres yet: that is the one-time data migration. The `dev` branch has nine of them (the first nine names, with made-up details) and 25 fake reservations from `npm run db:seed`.
   - Overlap logic: `packages/core` plus (to come) the database exclusion constraint, which is the final guard.
-- **Hosting:** Vercel project `airtable-reservation-form` (the name is historical), team `boban2`, Hobby plan. Auto-deploys from `main`. Its only database variable is `DATABASE_URL` (role `delta_app`, pooled).
+- **Hosting:** Vercel project `airtable-reservation-form` (the name is historical), team `boban2`, **Pro plan** (upgraded by the owner on 2026-11-12, so the Hobby limit of 12 serverless functions no longer applies; 11 routes today). Auto-deploys from `main`. Its only database variable is `DATABASE_URL` (role `delta_app`, pooled).
   - **Current decision (ADR 0005):** Vercel Production connects to the Neon `dev` branch until the production branch is ready. So the deployed app shows the fake dev data, and no real data may be entered. Never add `MIGRATION_DATABASE_URL` (owner) or `READONLY_DATABASE_URL` to Vercel.
   - **Public production URL (use this in apps): https://airtable-reservation-form.vercel.app**
   - Do NOT use `...-boban2.vercel.app` or per-deployment URLs: they are behind Vercel login (302) and phones cannot reach them.
@@ -146,5 +146,5 @@ Everything below is on `main` (commit and push only on request).
 **Where to start a new session**
 1. `git checkout main && git pull origin main`, then a new feature branch from `main`.
 2. Read `TODO.md` (the next tasks, in a suggested order), `KNOWN_ISSUES.md` and the ADRs in `docs/decisions/` that touch the task.
-3. Suggested next task: the `inquiry` status and the overlap constraint (the users task, with Manage roles, is done). Before the next entity that needs create and edit routes (apartments, reservations) the Vercel Hobby limit of 12 functions will be reached (11 today): the owner upgrades the plan then. After it: the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
+3. Suggested next task: the `inquiry` status and the overlap constraint (the users task, with Manage roles, is done). Apartments and reservations each get their own create and edit routes (the Pro plan has no 12-function limit). After it: the write endpoints with the New reservation screen, ViewModels, then the production branch with the real data, and the web app.
 4. To see the app on the phone: `/phone-preview`. The deployed app shows fake dev data and no real data may be entered yet (ADR 0005, `KNOWN_ISSUES.md` 16 and 17).
