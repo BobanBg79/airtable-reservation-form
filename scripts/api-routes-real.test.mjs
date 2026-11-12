@@ -35,6 +35,9 @@ function databaseFor(role) {
     ['from roles where id', [{ id: '2' }]], // the role lookup of create user
     ['from roles where', [{ id: '1', name: 'admin' }]],
     ['select 1 as taken from users', []],
+    ['r.is_protected from roles r where', [{ id: '3', name: 'manager', is_protected: false }]], // the role lookup of edit role
+    ['group by r.id', [{ id: '3', name: 'manager', is_protected: false, permissions: ['can_view_apartment'] }]],
+    ['from permissions where is_active', [{ name: 'can_view_apartment' }]],
     ['insert into users', [{ id: '9' }]],
     ['from apartments', [apartmentRow]],
   ]);
@@ -101,6 +104,17 @@ const CALLS = {
       assert.doesNotMatch(JSON.stringify(body), /password|\$2b/i);
     },
   },
+  '/api/roles/permissions': {
+    request: { method: 'GET' },
+    check: (body) => {
+      assert.deepEqual(body.permissions, ['can_view_apartment']); // the fake database knows one permission
+      assert.deepEqual(body.roles, [{ id: '3', name: 'manager', isProtected: false, permissions: ['can_view_apartment'] }]);
+    },
+  },
+  '/api/roles/edit': {
+    request: { method: 'POST', body: { id: '3', permissions: ['can_view_apartment'] } },
+    check: (body) => assert.deepEqual(body, { id: '3', name: 'manager', isProtected: false, permissions: ['can_view_apartment'] }),
+  },
   '/api/users/edit': {
     request: { method: 'POST', body: { id: '9', firstName: 'Changed', password: 'New-password-77!' } },
     check: (body) => {
@@ -124,6 +138,8 @@ const EXPECTED_STATUS = {
   '/api/roles': ONLY_ADMIN,
   '/api/users/create': { ...ONLY_ADMIN, admin: 201 },
   '/api/users/edit': ONLY_ADMIN,
+  '/api/roles/permissions': ONLY_ADMIN,
+  '/api/roles/edit': ONLY_ADMIN,
 };
 
 // How many permissions /api/auth/me must report for each role (the initial sets of ADR 0007), written out.

@@ -138,3 +138,28 @@ export async function loadCalendar(sql, { start, end }) {
     })),
   };
 }
+
+/** The names of the active permissions, in a stable order (the order they were created in). */
+export async function loadPermissionNames(sql) {
+  const rows = await sql.query('select name from permissions where is_active order by id');
+  return rows.map((r) => r.name);
+}
+
+/**
+ * The active roles with the names of the permissions each has now (an active link to an active permission), for
+ * the Manage roles screen; just one role when `id` is given. Never a password or any user data.
+ */
+export async function loadRolesWithPermissions(sql, id) {
+  const rows = await sql.query(
+    `select r.id::text as id, r.name, r.is_protected,
+            coalesce(array_agg(p.name order by p.id) filter (where rp.is_active and p.is_active), '{}'::text[]) as permissions
+       from roles r
+       left join role_permissions rp on rp.role_id = r.id
+       left join permissions p on p.id = rp.permission_id
+      where r.is_active${id === undefined ? '' : ' and r.id = $1::bigint'}
+      group by r.id
+      order by r.id`,
+    id === undefined ? [] : [id],
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, isProtected: r.is_protected === true, permissions: r.permissions ?? [] }));
+}

@@ -37,7 +37,7 @@ export const PERMISSIONS = [
 export type PermissionName = (typeof PERMISSIONS)[number];
 
 // Only the admin manages users and roles (ADR 0007), so the other roles start without these.
-const ADMIN_ONLY_PERMISSIONS: readonly PermissionName[] = ['can_view_user', 'can_create_user', 'can_edit_user', 'can_view_role', 'can_edit_role'];
+export const ADMIN_ONLY_PERMISSIONS: readonly PermissionName[] = ['can_view_user', 'can_create_user', 'can_edit_user', 'can_view_role', 'can_edit_role'];
 const withoutAdminOnlyPermissions = PERMISSIONS.filter((p) => !ADMIN_ONLY_PERMISSIONS.includes(p));
 
 /** Initial permissions of each role, as seeded by the migration. Admin can change the others afterwards. */

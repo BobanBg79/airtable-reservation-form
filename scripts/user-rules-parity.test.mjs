@@ -5,7 +5,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { passwordProblems as serverPasswordProblems } from '../api/_password.js';
+import { ADMIN_ONLY_PERMISSIONS as serverAdminOnly } from '../api/_roleInput.js';
 import { validateNewUser, validateUserEdit } from '../api/_userInput.js';
+import { ADMIN_ONLY_PERMISSIONS as coreAdminOnly } from '../packages/core/src/models/permissions.ts';
 import {
   passwordProblems as corePasswordProblems,
   toCreateUserRequest,
@@ -92,4 +94,8 @@ test('the edit form: core and the server give the same messages for the fields t
     const server = validateUserEdit({ id: '9', ...e }).fields;
     assert.deepEqual(core, server, JSON.stringify(e));
   }
+});
+
+test('the admin-only permissions are the same list in core and on the server', () => {
+  assert.deepEqual([...coreAdminOnly].sort(), [...serverAdminOnly].sort());
 });

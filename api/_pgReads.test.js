@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { apartmentFieldAccess, loadApartmentDetails, loadApartments, loadCalendar, loadRoles, loadUser, loadUsers } from './_pgReads.js';
+import { apartmentFieldAccess, loadApartmentDetails, loadApartments, loadCalendar, loadPermissionNames, loadRoles, loadRolesWithPermissions, loadUser, loadUsers } from './_pgReads.js';
 import { PG_FREES_DATES } from './_status.js';
 
 // A fake SQL client: records every query and answers from a queue keyed by a fragment of the SQL.
@@ -210,4 +210,34 @@ test('loadRoles returns the active roles as id and name', async () => {
   const sql = fakeSql({ 'from roles': [{ id: '1', name: 'admin', description: 'x' }, { id: '2', name: 'manager' }] });
   assert.deepEqual(await loadRoles(sql), [{ id: '1', name: 'admin' }, { id: '2', name: 'manager' }]);
   assert.match(sql.calls[0].text, /where is_active/);
+});
+
+test('loadPermissionNames returns the names of the active permissions in creation order', async () => {
+  const sql = fakeSql({ 'from permissions where is_active': [{ name: 'can_view_user' }, { name: 'can_edit_user' }] });
+  assert.deepEqual(await loadPermissionNames(sql), ['can_view_user', 'can_edit_user']);
+  assert.match(sql.calls[0].text, /order by id/);
+});
+
+test('loadRolesWithPermissions maps each role with its permission names, counting only active links to active permissions', async () => {
+  const sql = fakeSql({
+    'group by r.id': [
+      { id: '1', name: 'admin', is_protected: true, permissions: ['can_view_user', 'can_edit_user'] },
+      { id: '4', name: 'cleaning_lady', is_protected: false, permissions: null },
+    ],
+  });
+  assert.deepEqual(await loadRolesWithPermissions(sql), [
+    { id: '1', name: 'admin', isProtected: true, permissions: ['can_view_user', 'can_edit_user'] },
+    { id: '4', name: 'cleaning_lady', isProtected: false, permissions: [] },
+  ]);
+  const { text, params } = sql.calls[0];
+  assert.match(text, /filter \(where rp\.is_active and p\.is_active\)/);
+  assert.match(text, /where r\.is_active\s+group by r\.id/);
+  assert.deepEqual(params, []);
+});
+
+test('loadRolesWithPermissions with an id asks for that one role, by parameter', async () => {
+  const sql = fakeSql({ 'group by r.id': [{ id: '2', name: 'manager', is_protected: false, permissions: [] }] });
+  await loadRolesWithPermissions(sql, '2');
+  assert.match(sql.calls[0].text, /and r\.id = \$1::bigint/);
+  assert.deepEqual(sql.calls[0].params, ['2']);
 });

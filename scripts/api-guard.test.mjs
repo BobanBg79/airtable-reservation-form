@@ -18,6 +18,8 @@ const EXPECTED = {
   '/api/apartments': { kind: 'protect', permission: 'can_view_apartment' },
   '/api/users': { kind: 'protect', permission: 'can_view_user' },
   '/api/roles': { kind: 'protect', permission: 'can_view_user' },
+  '/api/roles/permissions': { kind: 'protect', permission: 'can_view_role' },
+  '/api/roles/edit': { kind: 'protect', permission: 'can_edit_role' },
   '/api/users/create': { kind: 'protect', permission: 'can_create_user' },
   '/api/users/edit': { kind: 'protect', permission: 'can_edit_user' },
 };
